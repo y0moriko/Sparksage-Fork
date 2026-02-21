@@ -30,6 +30,7 @@ class SparkSageBot(commands.Bot):
             "cogs.digest",
             "cogs.moderation",
             "cogs.translate",
+            "cogs.prompts",
         ]
         for extension in initial_extensions:
             try:

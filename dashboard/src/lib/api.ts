@@ -90,6 +90,12 @@ export interface FAQItem {
   created_at: string;
 }
 
+export interface ChannelPrompt {
+  channel_id: string;
+  guild_id: string;
+  system_prompt: string;
+}
+
 export const api = {
   // Auth
   login: (password: string) =>
@@ -191,6 +197,23 @@ export const api = {
 
   removePermission: (token: string, commandName: string, guildId: string, roleId: string) =>
     apiFetch<{ status: string }>(`/api/permissions?command_name=${commandName}&guild_id=${guildId}&role_id=${roleId}`, {
+      method: "DELETE",
+      token,
+    }),
+
+  // Prompts
+  getChannelPrompts: (token: string) =>
+    apiFetch<{ prompts: ChannelPrompt[] }>("/api/prompts", { token }),
+
+  setChannelPrompt: (token: string, data: ChannelPrompt) =>
+    apiFetch<{ status: string }>("/api/prompts", {
+      method: "POST",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  deleteChannelPrompt: (token: string, channelId: string) =>
+    apiFetch<{ status: string }>(`/api/prompts/${channelId}`, {
       method: "DELETE",
       token,
     }),

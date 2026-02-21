@@ -92,6 +92,12 @@ async def init_db():
             created_at      TEXT    DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS channel_prompts (
+            channel_id    TEXT PRIMARY KEY,
+            guild_id      TEXT NOT NULL,
+            system_prompt TEXT NOT NULL
+        );
+
         INSERT OR IGNORE INTO wizard_state (id) VALUES (1);
         """
     )
@@ -347,6 +353,43 @@ async def get_moderation_events(guild_id: str | None = None, limit: int = 50) ->
         cursor = await db.execute("SELECT * FROM moderation_events WHERE guild_id = ? ORDER BY id DESC LIMIT ?", (guild_id, limit))
     else:
         cursor = await db.execute("SELECT * FROM moderation_events ORDER BY id DESC LIMIT ?", (limit,))
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]
+
+
+# --- Channel Prompt helpers ---
+
+
+async def set_channel_prompt(channel_id: str, guild_id: str, system_prompt: str):
+    """Set a custom system prompt for a channel."""
+    db = await get_db()
+    await db.execute(
+        "INSERT INTO channel_prompts (channel_id, guild_id, system_prompt) VALUES (?, ?, ?) "
+        "ON CONFLICT(channel_id) DO UPDATE SET system_prompt = excluded.system_prompt",
+        (channel_id, guild_id, system_prompt),
+    )
+    await db.commit()
+
+
+async def get_channel_prompt(channel_id: str) -> str | None:
+    """Get the custom system prompt for a channel."""
+    db = await get_db()
+    cursor = await db.execute("SELECT system_prompt FROM channel_prompts WHERE channel_id = ?", (channel_id,))
+    row = await cursor.fetchone()
+    return row["system_prompt"] if row else None
+
+
+async def delete_channel_prompt(channel_id: str):
+    """Delete a custom system prompt for a channel."""
+    db = await get_db()
+    await db.execute("DELETE FROM channel_prompts WHERE channel_id = ?", (channel_id,))
+    await db.commit()
+
+
+async def list_channel_prompts() -> list[dict]:
+    """List all custom channel prompts."""
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM channel_prompts")
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]
 

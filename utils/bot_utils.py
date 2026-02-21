@@ -20,12 +20,19 @@ async def ask_ai(
     category: str | None = None
 ) -> tuple[str, str]:
     """Send a message to AI and return (response, provider_name)."""
+    # Check for channel-specific prompt
+    channel_prompt = await database.get_channel_prompt(str(channel_id))
+    
     # Store user message in DB
     await database.add_message(str(channel_id), "user", f"{user_name}: {message}", category=category)
 
     history = await get_history(channel_id)
     
-    prompt = system_prompt or config.SYSTEM_PROMPT
+    # Priority: 
+    # 1. Parameter system_prompt (from specialized cogs like code review)
+    # 2. Database channel_prompt
+    # 3. Global config system prompt
+    prompt = system_prompt or channel_prompt or config.SYSTEM_PROMPT
 
     try:
         response, provider_name = providers.chat(history, prompt)
