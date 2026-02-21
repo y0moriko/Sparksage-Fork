@@ -63,7 +63,14 @@ export interface BotStatus {
   latency_ms: number | null;
   guild_count: number;
   guilds: Array<{ id: string; name: string; member_count: number }>;
+  commands?: string[];
   uptime?: number | null;
+}
+
+export interface CommandPermission {
+  command_name: string;
+  guild_id: string;
+  role_id: string;
 }
 
 export interface TestProviderResult {
@@ -167,6 +174,23 @@ export const api = {
 
   deleteFAQ: (token: string, id: number) =>
     apiFetch<{ status: string }>(`/api/faqs/${id}`, {
+      method: "DELETE",
+      token,
+    }),
+
+  // Permissions
+  getPermissions: (token: string, guildId: string) =>
+    apiFetch<{ permissions: CommandPermission[] }>(`/api/permissions/${guildId}`, { token }),
+
+  addPermission: (token: string, data: CommandPermission) =>
+    apiFetch<{ status: string }>("/api/permissions", {
+      method: "POST",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  removePermission: (token: string, commandName: string, guildId: string, roleId: string) =>
+    apiFetch<{ status: string }>(`/api/permissions?command_name=${commandName}&guild_id=${guildId}&role_id=${roleId}`, {
       method: "DELETE",
       token,
     }),

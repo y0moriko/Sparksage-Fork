@@ -21,6 +21,7 @@ class SparkSageBot(commands.Bot):
             "cogs.code_review",
             "cogs.faq",
             "cogs.onboarding",
+            "cogs.permissions",
         ]
         for extension in initial_extensions:
             await self.load_extension(extension)
@@ -44,6 +45,7 @@ def get_bot_status() -> dict:
             "latency_ms": round(bot.latency * 1000, 1),
             "guild_count": len(bot.guilds),
             "guilds": [{"id": str(g.id), "name": g.name, "member_count": g.member_count} for g in bot.guilds],
+            "commands": [cmd.name for cmd in bot.tree.get_commands()],
         }
     return {"online": False, "username": None, "latency_ms": None, "guild_count": 0, "guilds": []}
 

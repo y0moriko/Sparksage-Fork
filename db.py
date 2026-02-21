@@ -66,6 +66,13 @@ async def init_db():
             created_at     TEXT    DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS command_permissions (
+            command_name TEXT NOT NULL,
+            guild_id     TEXT NOT NULL,
+            role_id      TEXT NOT NULL,
+            PRIMARY KEY (command_name, guild_id, role_id)
+        );
+
         INSERT OR IGNORE INTO wizard_state (id) VALUES (1);
         """
     )
@@ -245,6 +252,51 @@ async def increment_faq_usage(faq_id: int):
     db = await get_db()
     await db.execute("UPDATE faqs SET times_used = times_used + 1 WHERE id = ?", (faq_id,))
     await db.commit()
+
+
+# --- Permission helpers ---
+
+
+async def add_command_permission(command_name: str, guild_id: str, role_id: str):
+    """Restrict a command to a specific role."""
+    db = await get_db()
+    await db.execute(
+        "INSERT OR IGNORE INTO command_permissions (command_name, guild_id, role_id) VALUES (?, ?, ?)",
+        (command_name, guild_id, role_id),
+    )
+    await db.commit()
+
+
+async def remove_command_permission(command_name: str, guild_id: str, role_id: str):
+    """Remove a role restriction from a command."""
+    db = await get_db()
+    await db.execute(
+        "DELETE FROM command_permissions WHERE command_name = ? AND guild_id = ? AND role_id = ?",
+        (command_name, guild_id, role_id),
+    )
+    await db.commit()
+
+
+async def get_command_permissions(command_name: str, guild_id: str) -> list[str]:
+    """Get all allowed role IDs for a specific command."""
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT role_id FROM command_permissions WHERE command_name = ? AND guild_id = ?",
+        (command_name, guild_id),
+    )
+    rows = await cursor.fetchall()
+    return [row["role_id"] for row in rows]
+
+
+async def get_guild_permissions(guild_id: str) -> list[dict]:
+    """Get all command permissions for a guild."""
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT * FROM command_permissions WHERE guild_id = ?",
+        (guild_id,),
+    )
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]
 
 
 # --- Wizard helpers ---

@@ -12,6 +12,7 @@ import {
   Wand2,
   LogOut,
   HelpCircle,
+  Shield,
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { title: "Providers", href: "/dashboard/providers", icon: Cpu },
   { title: "FAQs", href: "/dashboard/faqs", icon: HelpCircle },
+  { title: "Permissions", href: "/dashboard/permissions", icon: Shield },
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
   { title: "Conversations", href: "/dashboard/conversations", icon: MessageSquare },
 ];

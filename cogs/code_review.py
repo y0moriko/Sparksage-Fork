@@ -3,6 +3,7 @@ from discord import app_commands
 import discord
 import config
 from utils.bot_utils import ask_ai
+from utils.permissions import has_command_permission
 
 CODE_REVIEW_PROMPT = """You are a senior code reviewer. Analyze the code for:
 1. Bugs and potential errors
@@ -22,6 +23,7 @@ class CodeReview(commands.Cog):
         code="The code snippet to review",
         language="Programming language (optional, for better highlighting)"
     )
+    @has_command_permission()
     async def review(self, interaction: discord.Interaction, code: str, language: str | None = None):
         await interaction.response.defer()
         

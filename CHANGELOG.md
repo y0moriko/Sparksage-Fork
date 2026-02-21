@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.5] - 2026-02-21
+
+### Added
+- **Role-Based Access Control (RBAC)** — Restrict any Discord slash command to specific server roles.
+- **`cogs/permissions.py`** — New cog with `/permissions` group for managing command restrictions.
+- **Permissions Management Page** — New dashboard page for viewing and editing command-to-role mappings.
+- **`command_permissions` Database Table** — Persistent storage for RBAC rules.
+- **`utils/permissions.py`** — Modular permission checker/decorator for use in any cog.
+- **Permissions API** — Backend routes for remote permission management.
+
 ## [0.3.4] - 2026-02-21
 
 ### Added
