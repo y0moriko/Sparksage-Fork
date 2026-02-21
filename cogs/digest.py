@@ -1,9 +1,11 @@
 import discord
 from discord.ext import commands, tasks
+from discord import app_commands
 import config
 import providers
 import datetime
 import asyncio
+from utils.permissions import has_command_permission
 
 class Digest(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -13,6 +15,22 @@ class Digest(commands.Cog):
 
     def cog_unload(self):
         self.daily_digest.cancel()
+
+    digest_group = app_commands.Group(
+        name="digest", 
+        description="Manage daily server summaries",
+        default_permissions=discord.Permissions(manage_guild=True)
+    )
+
+    @digest_group.command(name="run", description="Manually trigger the daily digest summary")
+    @has_command_permission()
+    async def run_manual_digest(self, interaction: discord.Interaction):
+        if not config.DIGEST_CHANNEL_ID:
+            await interaction.response.send_message("Error: Digest channel ID is not configured in settings.", ephemeral=True)
+            return
+
+        await interaction.response.send_message("Starting manual digest generation...", ephemeral=True)
+        await self.run_digest()
 
     @tasks.loop(minutes=1)
     async def daily_digest(self):
@@ -74,22 +92,20 @@ class Digest(commands.Cog):
 
         if not summary_data:
             print("Digest: No activity found to summarize.")
+            # If manually triggered, notify the user
+            # (Note: we already responded to the interaction)
             return
 
         # Summarize with AI
-        activity_text = "
-".join(summary_data)
+        activity_text = "\n".join(summary_data)
         # Limit total text size
         if len(activity_text) > 15000:
-            activity_text = activity_text[:15000] + "
-... (truncated)"
+            activity_text = activity_text[:15000] + "\n... (truncated)"
 
         prompt = "You are an activity summarizer. Below is a log of messages from various Discord channels over the past 24 hours. Create a concise, engaging 'Daily Digest' summary highlighting the key discussions, decisions, and highlights. Use bullet points and group by channel where appropriate."
         
         try:
-            messages = [{"role": "user", "content": f"Here is the activity log:
-
-{activity_text}"}]
+            messages = [{"role": "user", "content": f"Here is the activity log:\n\n{activity_text}"}]
             response, provider_name = providers.chat(messages, prompt)
             
             # Post to digest channel
