@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import auth, config, providers, bot, conversations, wizard, faq, permissions, prompts
+from api.routes import auth, config, providers, bot, conversations, wizard, faq, permissions, prompts, channels
 import db
 
 
@@ -36,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(faq.router, prefix="/api/faqs", tags=["faq"])
     app.include_router(permissions.router, prefix="/api/permissions", tags=["permissions"])
     app.include_router(prompts.router, prefix="/api/prompts", tags=["prompts"])
+    app.include_router(channels.router, prefix="/api/channels", tags=["channels"])
 
     @app.get("/api/health")
     async def health():
