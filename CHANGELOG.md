@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1] - 2026-02-21
+
+### Changed
+- **Modular Cog System** — Refactored all Discord commands out of `bot.py` into separate cog files for better organization.
+- **`bot.py`** — Simplified to focus on event handlers and dynamic cog loading via `setup_hook`.
+- **`cogs/general.py`** — Created to handle `/ask`, `/clear`, and `/provider` commands.
+- **`cogs/summarize.py`** — Created to handle the `/summarize` command.
+- **`utils/bot_utils.py`** — Extracted shared bot logic (`ask_ai`, `get_history`) for use across multiple cogs.
+
 ## [0.3.0] - 2026-02-19
 
 ### Added

@@ -59,9 +59,10 @@ export interface MessageItem {
 
 export interface BotStatus {
   online: boolean;
-  latency: number | null;
-  guilds: number;
-  uptime: number | null;
+  latency_ms: number | null;
+  guild_count: number;
+  guilds: Array<{ id: string; name: string; member_count: number }>;
+  uptime?: number | null;
 }
 
 export interface TestProviderResult {
@@ -137,7 +138,7 @@ export const api = {
   completeWizard: (token: string, data: Record<string, string>) =>
     apiFetch<{ status: string }>("/api/wizard/complete", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({ config: data }),
       token,
     }),
 };
