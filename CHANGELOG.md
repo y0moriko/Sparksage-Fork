@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.5] - 2026-02-21
+
+### Added
+- **Per-Channel AI Overrides** — Ability to configure unique system prompts (personas) and force specific AI providers for individual Discord channels.
+- **Advanced Channel Settings UI** — New tabbed interface in the dashboard for managing channel personas and provider overrides.
+- **Channel Override Commands** — New `/prompt set/reset` and `/channel-provider set/reset` Discord commands for real-time configuration.
+- **Expanded Database Schema** — Added `channel_prompts` and `channel_providers` tables for granular bot behavior management.
+
 ## [0.4.3] - 2026-02-21
 
 ### Added

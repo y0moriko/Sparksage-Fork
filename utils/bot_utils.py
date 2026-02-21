@@ -20,8 +20,9 @@ async def ask_ai(
     category: str | None = None
 ) -> tuple[str, str]:
     """Send a message to AI and return (response, provider_name)."""
-    # Check for channel-specific prompt
+    # Check for channel-specific prompt and provider
     channel_prompt = await database.get_channel_prompt(str(channel_id))
+    forced_provider = await database.get_channel_provider(str(channel_id))
     
     # Store user message in DB
     await database.add_message(str(channel_id), "user", f"{user_name}: {message}", category=category)
@@ -35,9 +36,32 @@ async def ask_ai(
     prompt = system_prompt or channel_prompt or config.SYSTEM_PROMPT
 
     try:
-        response, provider_name = providers.chat(history, prompt)
+        if forced_provider:
+            # If a provider is forced for this channel, try ONLY that one (no fallback)
+            from providers import _clients
+            client = _clients.get(forced_provider)
+            if client:
+                prov_cfg = config.PROVIDERS[forced_provider]
+                response_obj = client.chat.completions.create(
+                    model=prov_cfg["model"],
+                    max_tokens=config.MAX_TOKENS,
+                    messages=[
+                        {"role": "system", "content": prompt},
+                        *history,
+                    ],
+                )
+                response = response_obj.choices[0].message.content
+                provider_name = forced_provider
+            else:
+                # Fallback to normal chat if forced client not found
+                response, provider_name = providers.chat(history, prompt)
+        else:
+            response, provider_name = providers.chat(history, prompt)
+            
         # Store assistant response in DB
         await database.add_message(str(channel_id), "assistant", response, provider=provider_name, category=category)
         return response, provider_name
     except RuntimeError as e:
         return f"Sorry, all AI providers failed:\n{e}", "none"
+    except Exception as e:
+        return f"An error occurred: {e}", "none"

@@ -14,17 +14,13 @@ _db_connections: dict[asyncio.AbstractEventLoop, aiosqlite.Connection] = {}
 async def get_db() -> aiosqlite.Connection:
     """Return the shared database connection for the current event loop."""
     loop = asyncio.get_running_loop()
-    
-    # Check if we have a connection and if it's still open
-    conn = _db_connections.get(loop)
-    if conn is None:
+    if loop not in _db_connections or _db_connections[loop].io_task.done():
         conn = await aiosqlite.connect(DATABASE_PATH)
         conn.row_factory = aiosqlite.Row
         await conn.execute("PRAGMA journal_mode=WAL")
         await conn.execute("PRAGMA foreign_keys=ON")
         _db_connections[loop] = conn
-    
-    return conn
+    return _db_connections[loop]
 
 
 async def init_db():
@@ -96,6 +92,12 @@ async def init_db():
             channel_id    TEXT PRIMARY KEY,
             guild_id      TEXT NOT NULL,
             system_prompt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS channel_providers (
+            channel_id    TEXT PRIMARY KEY,
+            guild_id      TEXT NOT NULL,
+            provider_name TEXT NOT NULL
         );
 
         INSERT OR IGNORE INTO wizard_state (id) VALUES (1);
@@ -390,6 +392,43 @@ async def list_channel_prompts() -> list[dict]:
     """List all custom channel prompts."""
     db = await get_db()
     cursor = await db.execute("SELECT * FROM channel_prompts")
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]
+
+
+# --- Channel Provider helpers ---
+
+
+async def set_channel_provider(channel_id: str, guild_id: str, provider_name: str):
+    """Set a custom AI provider for a channel."""
+    db = await get_db()
+    await db.execute(
+        "INSERT INTO channel_providers (channel_id, guild_id, provider_name) VALUES (?, ?, ?) "
+        "ON CONFLICT(channel_id) DO UPDATE SET provider_name = excluded.provider_name",
+        (channel_id, guild_id, provider_name),
+    )
+    await db.commit()
+
+
+async def get_channel_provider(channel_id: str) -> str | None:
+    """Get the custom AI provider for a channel."""
+    db = await get_db()
+    cursor = await db.execute("SELECT provider_name FROM channel_providers WHERE channel_id = ?", (channel_id,))
+    row = await cursor.fetchone()
+    return row["provider_name"] if row else None
+
+
+async def delete_channel_provider(channel_id: str):
+    """Delete a custom AI provider for a channel."""
+    db = await get_db()
+    await db.execute("DELETE FROM channel_providers WHERE channel_id = ?", (channel_id,))
+    await db.commit()
+
+
+async def list_channel_providers() -> list[dict]:
+    """List all custom channel providers."""
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM channel_providers")
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]
 
