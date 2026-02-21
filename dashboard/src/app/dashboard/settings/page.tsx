@@ -31,6 +31,8 @@ const settingsSchema = z.object({
   MODERATION_ENABLED: z.boolean(),
   MOD_LOG_CHANNEL_ID: z.string(),
   MODERATION_SENSITIVITY: z.enum(["low", "medium", "high"]),
+  TRANSLATION_ENABLED: z.boolean(),
+  TRANSLATION_TARGET_LANG: z.string(),
   GEMINI_API_KEY: z.string(),
   GROQ_API_KEY: z.string(),
   OPENROUTER_API_KEY: z.string(),
@@ -55,6 +57,8 @@ const DEFAULTS: SettingsForm = {
   MODERATION_ENABLED: false,
   MOD_LOG_CHANNEL_ID: "",
   MODERATION_SENSITIVITY: "medium",
+  TRANSLATION_ENABLED: false,
+  TRANSLATION_TARGET_LANG: "English",
   GEMINI_API_KEY: "",
   GROQ_API_KEY: "",
   OPENROUTER_API_KEY: "",
@@ -84,7 +88,12 @@ export default function SettingsPage() {
           if (config[key] !== undefined) {
             if (key === "MAX_TOKENS") {
               mapped[key] = Number(config[key]);
-            } else if (key === "WELCOME_ENABLED" || key === "DIGEST_ENABLED" || key === "MODERATION_ENABLED") {
+            } else if (
+              key === "WELCOME_ENABLED" || 
+              key === "DIGEST_ENABLED" || 
+              key === "MODERATION_ENABLED" ||
+              key === "TRANSLATION_ENABLED"
+            ) {
               mapped[key] = String(config[key]).toLowerCase() === "true";
             } else {
               (mapped as any)[key] = config[key];
@@ -127,6 +136,7 @@ export default function SettingsPage() {
   const digestEnabled = form.watch("DIGEST_ENABLED");
   const moderationEnabled = form.watch("MODERATION_ENABLED");
   const moderationSensitivity = form.watch("MODERATION_SENSITIVITY");
+  const translationEnabled = form.watch("TRANSLATION_ENABLED");
 
   if (loading) {
     return (
@@ -297,6 +307,41 @@ export default function SettingsPage() {
                   </RadioGroup>
                 </div>
               </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Translation Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Auto-Translation</CardTitle>
+            <CardDescription>Automatically detect and translate messages not in the target language.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <Label>Enable Auto-Translation</Label>
+              <RadioGroup 
+                value={translationEnabled ? "true" : "false"} 
+                onValueChange={(val) => form.setValue("TRANSLATION_ENABLED", val === "true")}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="true" id="trans-on" />
+                  <Label htmlFor="trans-on" className="font-normal">On</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="false" id="trans-off" />
+                  <Label htmlFor="trans-off" className="font-normal">Off</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {translationEnabled && (
+              <div className="space-y-2">
+                <Label htmlFor="trans-lang">Target Language</Label>
+                <Input id="trans-lang" placeholder="English" {...form.register("TRANSLATION_TARGET_LANG")} />
+                <p className="text-[10px] text-muted-foreground">Messages will be translated into this language.</p>
+              </div>
             )}
           </CardContent>
         </Card>

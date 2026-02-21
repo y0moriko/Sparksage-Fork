@@ -3,9 +3,10 @@
 ## [0.4.3] - 2026-02-21
 
 ### Added
-- **Multi-Language Translation** — New `/translate` slash command that allows users to translate text between any languages supported by the AI.
-- **`cogs/translate.py`** — New cog implementing specialized translation prompts and response formatting.
-- **Translation Dashboard Badge** — Added a "Translation" badge to the conversation viewer for tagged translation interactions.
+- **Multi-Language Translation & Auto-Detect** — New `/translate` slash command and intelligent automatic language detection for incoming messages.
+- **`cogs/translate.py`** — New cog with specialized translation personas and non-target language detection logic.
+- **Translation Dashboard Settings** — New controls to enable/disable auto-translation and configure the target global language.
+- **Translation Dashboard Badge** — Added a "Translation" badge to the conversation viewer for better interaction categorization.
 
 ## [0.4.2] - 2026-02-21
 

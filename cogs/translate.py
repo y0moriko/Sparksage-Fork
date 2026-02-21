@@ -5,6 +5,7 @@ import config
 import providers
 import db as database
 from utils.permissions import has_command_permission
+import asyncio
 
 TRANSLATE_PROMPT = """You are a professional translator. 
 Translate the provided text into the target language. 
@@ -12,9 +13,56 @@ Maintain the original tone and context.
 Respond ONLY with the translated text, no extra explanations or quotes.
 """
 
+AUTO_TRANSLATE_PROMPT = """You are an automatic language detector and translator. 
+If the following message is NOT in {target_lang}, translate it into {target_lang}.
+If it is already in {target_lang}, respond with "ALREADY_IN_TARGET".
+Maintain the original tone. Respond ONLY with the translation or "ALREADY_IN_TARGET".
+"""
+
 class Translate(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        enabled = getattr(config, "TRANSLATION_ENABLED", False)
+        if not enabled or message.author.bot or not message.guild or not message.content:
+            return
+
+        # Skip commands
+        if message.content.startswith(getattr(config, "BOT_PREFIX", "!")):
+            return
+
+        # Simple heuristic: skip short messages
+        if len(message.content) < 10:
+            return
+
+        asyncio.create_task(self.auto_translate(message))
+
+    async def auto_translate(self, message: discord.Message):
+        target_lang = getattr(config, "TRANSLATION_TARGET_LANG", "English")
+        prompt = AUTO_TRANSLATE_PROMPT.format(target_lang=target_lang)
+        
+        try:
+            messages = [{"role": "user", "content": message.content}]
+            response, provider_name = providers.chat(messages, prompt)
+            
+            clean_res = response.strip().upper()
+            if "ALREADY_IN_TARGET" in clean_res:
+                return
+
+            # Post translation
+            embed = discord.Embed(
+                description=response,
+                color=discord.Color.blue()
+            )
+            provider_label = config.PROVIDERS.get(provider_name, {}).get("name", provider_name)
+            embed.set_footer(text=f"Auto-translated to {target_lang} via {provider_label}")
+            
+            await message.reply(embed=embed, mention_author=False)
+            
+        except Exception as e:
+            print(f"Auto-translate Error: {e}")
 
     @app_commands.command(name="translate", description="Translate text to another language")
     @app_commands.describe(
@@ -25,9 +73,7 @@ class Translate(commands.Cog):
     async def translate(self, interaction: discord.Interaction, text: str, target_language: str):
         await interaction.response.defer()
         
-        user_message = f"Translate the following text to {target_language}:
-
-{text}"
+        user_message = f"Translate the following text to {target_language}:\n\n{text}"
         messages = [{"role": "user", "content": user_message}]
         
         try:
@@ -45,7 +91,7 @@ class Translate(commands.Cog):
             
             await interaction.followup.send(embed=embed)
             
-            # Log to DB for dashboard visibility (optional but good for tracking)
+            # Log to DB
             await database.add_message(
                 str(interaction.channel_id), 
                 "user", 

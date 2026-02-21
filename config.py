@@ -55,6 +55,10 @@ MODERATION_ENABLED = os.getenv("MODERATION_ENABLED", "false").lower() == "true"
 MOD_LOG_CHANNEL_ID = os.getenv("MOD_LOG_CHANNEL_ID", "")
 MODERATION_SENSITIVITY = os.getenv("MODERATION_SENSITIVITY", "medium") # low, medium, high
 
+# Translation settings
+TRANSLATION_ENABLED = os.getenv("TRANSLATION_ENABLED", "false").lower() == "true"
+TRANSLATION_TARGET_LANG = os.getenv("TRANSLATION_TARGET_LANG", "English")
+
 # Dashboard settings
 DATABASE_PATH = os.getenv("DATABASE_PATH", "sparksage.db")
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8000"))
@@ -141,6 +145,8 @@ def reload_from_db(db_config: dict[str, str]):
         "MODERATION_ENABLED": lambda v: str(v).lower() == "true",
         "MOD_LOG_CHANNEL_ID": str,
         "MODERATION_SENSITIVITY": str,
+        "TRANSLATION_ENABLED": lambda v: str(v).lower() == "true",
+        "TRANSLATION_TARGET_LANG": str,
         "ADMIN_PASSWORD": str,
         "DISCORD_CLIENT_ID": str,
         "DISCORD_CLIENT_SECRET": str,
