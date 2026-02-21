@@ -20,6 +20,7 @@ class SparkSageBot(commands.Bot):
             "cogs.summarize",
             "cogs.code_review",
             "cogs.faq",
+            "cogs.onboarding",
         ]
         for extension in initial_extensions:
             await self.load_extension(extension)

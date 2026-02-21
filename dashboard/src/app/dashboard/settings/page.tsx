@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 
 const settingsSchema = z.object({
@@ -21,6 +22,9 @@ const settingsSchema = z.object({
   BOT_PREFIX: z.string().min(1).max(5),
   MAX_TOKENS: z.number().min(128).max(4096),
   SYSTEM_PROMPT: z.string().min(1),
+  WELCOME_ENABLED: z.boolean(),
+  WELCOME_CHANNEL_ID: z.string(),
+  WELCOME_MESSAGE: z.string(),
   GEMINI_API_KEY: z.string(),
   GROQ_API_KEY: z.string(),
   OPENROUTER_API_KEY: z.string(),
@@ -36,6 +40,9 @@ const DEFAULTS: SettingsForm = {
   MAX_TOKENS: 1024,
   SYSTEM_PROMPT:
     "You are SparkSage, a helpful and friendly AI assistant in a Discord server. Be concise, helpful, and engaging.",
+  WELCOME_ENABLED: false,
+  WELCOME_CHANNEL_ID: "",
+  WELCOME_MESSAGE: "Welcome {user} to {server}! I am SparkSage, your AI assistant. Feel free to ask me anything about the server or our community.",
   GEMINI_API_KEY: "",
   GROQ_API_KEY: "",
   OPENROUTER_API_KEY: "",
@@ -65,8 +72,10 @@ export default function SettingsPage() {
           if (config[key] !== undefined) {
             if (key === "MAX_TOKENS") {
               mapped[key] = Number(config[key]);
+            } else if (key === "WELCOME_ENABLED") {
+              mapped[key] = config[key].toLowerCase() === "true";
             } else {
-              (mapped as Record<string, string>)[key] = config[key];
+              (mapped as any)[key] = config[key];
             }
           }
         }
@@ -74,7 +83,7 @@ export default function SettingsPage() {
       })
       .catch(() => toast.error("Failed to load settings"))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, form]);
 
   async function onSubmit(values: SettingsForm) {
     if (!token) return;
@@ -103,6 +112,7 @@ export default function SettingsPage() {
 
   const maxTokens = form.watch("MAX_TOKENS");
   const systemPrompt = form.watch("SYSTEM_PROMPT");
+  const welcomeEnabled = form.watch("WELCOME_ENABLED");
 
   if (loading) {
     return (
@@ -123,7 +133,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-12">
         {/* Discord */}
         <Card>
           <CardHeader>
@@ -143,6 +153,58 @@ export default function SettingsPage() {
                 </p>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Onboarding Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">New Member Onboarding</CardTitle>
+            <CardDescription>Configure how the bot greets new members.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <Label>Enable Welcome Message</Label>
+              <RadioGroup 
+                value={welcomeEnabled ? "true" : "false"} 
+                onValueChange={(val) => form.setValue("WELCOME_ENABLED", val === "true")}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="true" id="welcome-on" />
+                  <Label htmlFor="welcome-on" className="font-normal">On</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="false" id="welcome-off" />
+                  <Label htmlFor="welcome-off" className="font-normal">Off</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {welcomeEnabled && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="welcome-channel">Welcome Channel ID</Label>
+                  <Input
+                    id="welcome-channel"
+                    placeholder="e.g. 1234567890..."
+                    {...form.register("WELCOME_CHANNEL_ID")}
+                  />
+                  <p className="text-[10px] text-muted-foreground">The ID of the channel where welcome messages will be posted.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="welcome-message">Welcome Message Template</Label>
+                  <Textarea
+                    id="welcome-message"
+                    placeholder="Welcome {user} to {server}!"
+                    {...form.register("WELCOME_MESSAGE")}
+                    rows={3}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Use <code>{'{user}'}</code> and <code>{'{server}'}</code> as placeholders.</p>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 

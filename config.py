@@ -37,6 +37,14 @@ SYSTEM_PROMPT = os.getenv(
     "Be concise, helpful, and engaging.",
 )
 
+# Onboarding settings
+WELCOME_ENABLED = os.getenv("WELCOME_ENABLED", "false").lower() == "true"
+WELCOME_CHANNEL_ID = os.getenv("WELCOME_CHANNEL_ID", "")
+WELCOME_MESSAGE = os.getenv(
+    "WELCOME_MESSAGE", 
+    "Welcome {user} to {server}! I am SparkSage, your AI assistant. Feel free to ask me anything about the server or our community."
+)
+
 # Dashboard settings
 DATABASE_PATH = os.getenv("DATABASE_PATH", "sparksage.db")
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8000"))
@@ -114,6 +122,9 @@ def reload_from_db(db_config: dict[str, str]):
         "BOT_PREFIX": str,
         "MAX_TOKENS": int,
         "SYSTEM_PROMPT": str,
+        "WELCOME_ENABLED": lambda v: str(v).lower() == "true",
+        "WELCOME_CHANNEL_ID": str,
+        "WELCOME_MESSAGE": str,
         "ADMIN_PASSWORD": str,
         "DISCORD_CLIENT_ID": str,
         "DISCORD_CLIENT_SECRET": str,

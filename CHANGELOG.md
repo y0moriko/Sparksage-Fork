@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.4] - 2026-02-21
+
+### Added
+- **New Member Onboarding** — Automatic welcome messages for new server members.
+- **`cogs/onboarding.py`** — New cog with `on_member_join` event listener.
+- **Onboarding Settings** — Dashboard configuration for enabling/disabling welcome messages, setting the target channel, and customizing the message template with `{user}` and `{server}` placeholders.
+- **Config Persistence** — Added `WELCOME_ENABLED`, `WELCOME_CHANNEL_ID`, and `WELCOME_MESSAGE` to the database and `.env` synchronization.
+
 ## [0.3.3] - 2026-02-21
 
 ### Added
