@@ -25,6 +25,9 @@ const settingsSchema = z.object({
   WELCOME_ENABLED: z.boolean(),
   WELCOME_CHANNEL_ID: z.string(),
   WELCOME_MESSAGE: z.string(),
+  DIGEST_ENABLED: z.boolean(),
+  DIGEST_CHANNEL_ID: z.string(),
+  DIGEST_TIME: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)"),
   GEMINI_API_KEY: z.string(),
   GROQ_API_KEY: z.string(),
   OPENROUTER_API_KEY: z.string(),
@@ -43,6 +46,9 @@ const DEFAULTS: SettingsForm = {
   WELCOME_ENABLED: false,
   WELCOME_CHANNEL_ID: "",
   WELCOME_MESSAGE: "Welcome {user} to {server}! I am SparkSage, your AI assistant. Feel free to ask me anything about the server or our community.",
+  DIGEST_ENABLED: false,
+  DIGEST_CHANNEL_ID: "",
+  DIGEST_TIME: "09:00",
   GEMINI_API_KEY: "",
   GROQ_API_KEY: "",
   OPENROUTER_API_KEY: "",
@@ -72,8 +78,8 @@ export default function SettingsPage() {
           if (config[key] !== undefined) {
             if (key === "MAX_TOKENS") {
               mapped[key] = Number(config[key]);
-            } else if (key === "WELCOME_ENABLED") {
-              mapped[key] = config[key].toLowerCase() === "true";
+            } else if (key === "WELCOME_ENABLED" || key === "DIGEST_ENABLED") {
+              mapped[key] = String(config[key]).toLowerCase() === "true";
             } else {
               (mapped as any)[key] = config[key];
             }
@@ -113,6 +119,7 @@ export default function SettingsPage() {
   const maxTokens = form.watch("MAX_TOKENS");
   const systemPrompt = form.watch("SYSTEM_PROMPT");
   const welcomeEnabled = form.watch("WELCOME_ENABLED");
+  const digestEnabled = form.watch("DIGEST_ENABLED");
 
   if (loading) {
     return (
@@ -202,6 +209,63 @@ export default function SettingsPage() {
                     rows={3}
                   />
                   <p className="text-[10px] text-muted-foreground">Use <code>{'{user}'}</code> and <code>{'{server}'}</code> as placeholders.</p>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Daily Digest Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Daily Digest</CardTitle>
+            <CardDescription>Automatically summarize and post daily server activity.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <Label>Enable Daily Digest</Label>
+              <RadioGroup 
+                value={digestEnabled ? "true" : "false"} 
+                onValueChange={(val) => form.setValue("DIGEST_ENABLED", val === "true")}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="true" id="digest-on" />
+                  <Label htmlFor="digest-on" className="font-normal">On</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="false" id="digest-off" />
+                  <Label htmlFor="digest-off" className="font-normal">Off</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {digestEnabled && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="digest-channel">Digest Channel ID</Label>
+                  <Input
+                    id="digest-channel"
+                    placeholder="e.g. 1234567890..."
+                    {...form.register("DIGEST_CHANNEL_ID")}
+                  />
+                  <p className="text-[10px] text-muted-foreground">The ID of the channel where the daily summary will be posted.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="digest-time">Digest Time (24h format)</Label>
+                  <Input
+                    id="digest-time"
+                    placeholder="09:00"
+                    {...form.register("DIGEST_TIME")}
+                    className="w-32"
+                  />
+                  {form.formState.errors.DIGEST_TIME && (
+                    <p className="text-xs text-destructive">
+                      {form.formState.errors.DIGEST_TIME.message}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">The time of day to post the summary (e.g., 09:00 or 21:30).</p>
                 </div>
               </>
             )}

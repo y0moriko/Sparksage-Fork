@@ -45,6 +45,11 @@ WELCOME_MESSAGE = os.getenv(
     "Welcome {user} to {server}! I am SparkSage, your AI assistant. Feel free to ask me anything about the server or our community."
 )
 
+# Digest settings
+DIGEST_ENABLED = os.getenv("DIGEST_ENABLED", "false").lower() == "true"
+DIGEST_CHANNEL_ID = os.getenv("DIGEST_CHANNEL_ID", "")
+DIGEST_TIME = os.getenv("DIGEST_TIME", "09:00") # HH:MM format
+
 # Dashboard settings
 DATABASE_PATH = os.getenv("DATABASE_PATH", "sparksage.db")
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8000"))
@@ -125,6 +130,9 @@ def reload_from_db(db_config: dict[str, str]):
         "WELCOME_ENABLED": lambda v: str(v).lower() == "true",
         "WELCOME_CHANNEL_ID": str,
         "WELCOME_MESSAGE": str,
+        "DIGEST_ENABLED": lambda v: str(v).lower() == "true",
+        "DIGEST_CHANNEL_ID": str,
+        "DIGEST_TIME": str,
         "ADMIN_PASSWORD": str,
         "DISCORD_CLIENT_ID": str,
         "DISCORD_CLIENT_SECRET": str,

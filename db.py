@@ -151,6 +151,9 @@ async def sync_env_to_db():
         "WELCOME_ENABLED": "true" if cfg.WELCOME_ENABLED else "false",
         "WELCOME_CHANNEL_ID": cfg.WELCOME_CHANNEL_ID,
         "WELCOME_MESSAGE": cfg.WELCOME_MESSAGE,
+        "DIGEST_ENABLED": "true" if cfg.DIGEST_ENABLED else "false",
+        "DIGEST_CHANNEL_ID": cfg.DIGEST_CHANNEL_ID,
+        "DIGEST_TIME": cfg.DIGEST_TIME,
     }
     # Only insert keys that don't already exist in DB (don't overwrite user edits)
     db = await get_db()

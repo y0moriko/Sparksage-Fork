@@ -1,52 +1,23 @@
 # Changelog
 
-## [0.3.5] - 2026-02-21
+## [0.4.1] - 2026-02-21
 
 ### Added
-- **Role-Based Access Control (RBAC)** — Restrict any Discord slash command to specific server roles.
-- **`cogs/permissions.py`** — New cog with `/permissions` group for managing command restrictions.
-- **Permissions Management Page** — New dashboard page for viewing and editing command-to-role mappings.
-- **`command_permissions` Database Table** — Persistent storage for RBAC rules.
-- **`utils/permissions.py`** — Modular permission checker/decorator for use in any cog.
-- **Permissions API** — Backend routes for remote permission management.
+- **Daily Digest Scheduler** — Automatically summarizes server activity from the past 24 hours and posts it to a designated channel.
+- **`cogs/digest.py`** — New cog with a task loop for scheduling and AI-powered activity summarization.
+- **Digest Dashboard Settings** — Added controls to the settings page for enabling/disabling the digest, selecting the target channel, and setting the daily post time.
+- **Digest Configuration** — Integrated `DIGEST_ENABLED`, `DIGEST_CHANNEL_ID`, and `DIGEST_TIME` into the database and sync logic.
 
-## [0.3.4] - 2026-02-21
+## [0.4.0] - 2026-02-21
 
 ### Added
-- **New Member Onboarding** — Automatic welcome messages for new server members.
-- **`cogs/onboarding.py`** — New cog with `on_member_join` event listener.
-- **Onboarding Settings** — Dashboard configuration for enabling/disabling welcome messages, setting the target channel, and customizing the message template with `{user}` and `{server}` placeholders.
-- **Config Persistence** — Added `WELCOME_ENABLED`, `WELCOME_CHANNEL_ID`, and `WELCOME_MESSAGE` to the database and `.env` synchronization.
-
-## [0.3.3] - 2026-02-21
-
-### Added
-- **FAQ Auto-Detection System** — New system that automatically detects and answers frequently asked questions based on keywords.
-- **`cogs/faq.py`** — New cog with `/faq` management commands and a message listener for keyword matching.
-- **FAQ Management Page** — New dashboard page for creating, listing, and deleting FAQ entries with usage tracking.
-- **`faqs` Database Table** — Persistent storage for FAQ entries, keywords, and usage statistics.
-- **FAQ API Endpoints** — New backend routes for managing FAQs from the dashboard.
-
-## [0.3.2] - 2026-02-21
-
-### Added
-- **Code Review System** — New `/review` slash command that provides structured feedback on code snippets.
-- **`cogs/code_review.py`** — New cog implementing the senior code reviewer persona with specialized prompts.
-- **Conversation Categorization** — Added `category` column to `conversations` table for better tracking of specialized interactions.
-- **Dashboard Badges** — "Code Review" badge added to the conversation viewer for tagged interactions.
-
-### Changed
-- **`db.py`** — Updated `init_db` for automatic schema migration and enhanced `add_message`/`get_messages` with category support.
-- **`utils/bot_utils.py`** — Updated `ask_ai` to support custom system prompts and interaction categories.
-
-## [0.3.1] - 2026-02-21
-
-### Changed
-- **Modular Cog System** — Refactored all Discord commands out of `bot.py` into separate cog files for better organization.
-- **`bot.py`** — Simplified to focus on event handlers and dynamic cog loading via `setup_hook`.
-- **`cogs/general.py`** — Created to handle `/ask`, `/clear`, and `/provider` commands.
-- **`cogs/summarize.py`** — Created to handle the `/summarize` command.
-- **`utils/bot_utils.py`** — Extracted shared bot logic (`ask_ai`, `get_history`) for use across multiple cogs.
+- **Modular Cog System** — Refactored all Discord commands into organized cog files (`general`, `summarize`, `code_review`, `faq`, `onboarding`, `permissions`).
+- **Role-Based Access Control (RBAC)** — Comprehensive system to restrict commands to specific server roles, manageable via Discord and Dashboard.
+- **Code Review System** — Specialized `/review` command providing senior-level feedback on code snippets with syntax highlighting.
+- **FAQ Auto-Detection** — Intelligent listener that responds to frequently asked questions based on configurable keywords.
+- **New Member Onboarding** — Customizable welcome flow with rich embeds and server information.
+- **Advanced Dashboard** — New management pages for FAQs and Command Permissions.
+- **Stability Fixes** — Thread-safe loop-local database connections, improved error handling, and Discord intent optimizations.
 
 ## [0.3.0] - 2026-02-19
 
