@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { api, AnalyticsSummary, AnalyticsEvent, BotStatus, UsageResponse } from "@/lib/api";
+import { api, AnalyticsSummary, AnalyticsEvent, BotStatus, UsageResponse, CostSummary } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -25,7 +25,7 @@ import {
   Bar,
   Legend,
 } from "recharts";
-import { Loader2, TrendingUp, Cpu, Hash, Clock, History, RefreshCw } from "lucide-react";
+import { Loader2, TrendingUp, Cpu, Hash, Clock, History, RefreshCw, DollarSign, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -41,11 +41,12 @@ export default function AnalyticsPage() {
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [history, setHistory] = useState<AnalyticsEvent[]>([]);
   const [usage, setUsage] = useState<UsageResponse | null>(null);
+  const [costs, setCosts] = useState<CostSummary | null>(null);
   const [botStatus, setBotStatus] = useState<BotStatus | null>(null);
   const [channelMap, setChannelMap] = useState<Record<string, string>>({});
   const [config, setConfig] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [selectedGuildId, setSelectedGuildId] = useState<string>("");
+  const [selectedGuildId, setSelectedGuildId] = useState<string>("all");
 
   const token = (session as { accessToken?: string })?.accessToken;
 
@@ -62,21 +63,19 @@ export default function AnalyticsPage() {
         setBotStatus(status);
         setConfig(configData.config);
 
-        if (status.guilds.length > 0 && !selectedGuildId) {
-          setSelectedGuildId(status.guilds[0].id);
-        }
-
         // Fetch filtered data
-        const guildFilter = selectedGuildId === "all" ? undefined : (selectedGuildId || (status.guilds.length > 0 ? status.guilds[0].id : undefined));
-        const [summaryData, historyData, usageData] = await Promise.all([
+        const guildFilter = selectedGuildId === "all" ? undefined : selectedGuildId;
+        const [summaryData, historyData, usageData, costData] = await Promise.all([
           api.getAnalyticsSummary(token, guildFilter),
           api.getAnalyticsHistory(token, 10, guildFilter),
           api.getAnalyticsUsage(token, guildFilter),
+          api.getAnalyticsCosts(token),
         ]);
 
         setSummary(summaryData);
         setHistory(historyData.history);
         setUsage(usageData);
+        setCosts(costData);
 
         // Fetch channel names for each guild to build a master map
         const allChannelMaps: Record<string, string> = {};
@@ -101,7 +100,7 @@ export default function AnalyticsPage() {
     fetchData();
   }, [token, selectedGuildId]);
 
-  if (loading) {
+  if (loading && !summary) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -111,7 +110,6 @@ export default function AnalyticsPage() {
 
   if (!summary) return null;
 
-  // Prepare data for Top Channels bar chart with names
   const mappedTopChannels = summary.top_channels.map(c => ({
     ...c,
     displayName: channelMap[c.channel_id] || c.channel_id
@@ -123,7 +121,7 @@ export default function AnalyticsPage() {
         <div>
           <h1 className="text-2xl font-bold">Analytics & Usage</h1>
           <p className="text-muted-foreground text-sm">
-            Monitoring {botStatus?.guilds.find(g => g.id === selectedGuildId)?.name || "All Servers"}
+            Monitoring {selectedGuildId === "all" ? "All Servers" : botStatus?.guilds.find(g => g.id === selectedGuildId)?.name}
           </p>
         </div>
         
@@ -151,6 +149,7 @@ export default function AnalyticsPage() {
         <TabsList>
           <TabsTrigger value="overview">Dashboard</TabsTrigger>
           <TabsTrigger value="quota">Quota Monitoring</TabsTrigger>
+          <TabsTrigger value="costs">Cost Tracking</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -202,7 +201,6 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Messages Per Day */}
             <Card className="col-span-1">
               <CardHeader>
                 <CardTitle>Activity Overview</CardTitle>
@@ -234,7 +232,6 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            {/* Provider Usage */}
             <Card className="col-span-1">
               <CardHeader>
                 <CardTitle>Provider Distribution</CardTitle>
@@ -263,7 +260,6 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            {/* Top Channels */}
             <Card className="col-span-1">
               <CardHeader>
                 <CardTitle>Top Channels</CardTitle>
@@ -284,7 +280,6 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            {/* Average Latency */}
             <Card className="col-span-1">
               <CardHeader>
                 <CardTitle>Response Latency</CardTitle>
@@ -321,7 +316,6 @@ export default function AnalyticsPage() {
 
         <TabsContent value="quota" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
-            {/* User Quotas */}
             <Card>
               <CardHeader>
                 <CardTitle>Active User Limits</CardTitle>
@@ -348,7 +342,6 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            {/* Guild Quotas */}
             <Card>
               <CardHeader>
                 <CardTitle>Active Server Limits</CardTitle>
@@ -377,9 +370,100 @@ export default function AnalyticsPage() {
             </Card>
           </div>
         </TabsContent>
+
+        <TabsContent value="costs" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Total Lifetime Cost</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold flex items-center gap-1">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                  {costs?.total_cost.toFixed(4)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Estimated USD</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Daily Avg (Last 30d)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  ${((costs?.total_cost || 0) / (costs?.daily_costs.length || 1)).toFixed(4)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Projected Monthly</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  ${(((costs?.total_cost || 0) / (costs?.daily_costs.length || 1)) * 30).toFixed(2)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Cost by Provider</CardTitle>
+                <CardDescription>Financial distribution across AI models</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={costs?.provider_costs}
+                      dataKey="cost"
+                      nameKey="provider"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      label={({ provider, cost }) => `${provider}: $${cost.toFixed(3)}`}
+                    >
+                      {costs?.provider_costs.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(val: number) => `$${val.toFixed(4)}`} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Daily Expenditure</CardTitle>
+                <CardDescription>Cost trends over the last 30 days</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={costs?.daily_costs}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis 
+                      dataKey="day" 
+                      tickFormatter={(val) => format(new Date(val), "MMM d")}
+                      fontSize={12} 
+                    />
+                    <YAxis fontSize={12} tickFormatter={(val) => `$${val.toFixed(2)}`} />
+                    <Tooltip 
+                      labelFormatter={(val) => format(new Date(val), "PPPP")}
+                      formatter={(val: number) => [`$${val.toFixed(4)}`, "Cost"]}
+                    />
+                    <Bar dataKey="cost" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
       </Tabs>
 
-      {/* Recent History */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -406,7 +490,13 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
                 <div className="text-right space-y-1">
-                  <div className="text-xs font-mono">{event.latency_ms ? `${event.latency_ms}ms` : "-"}</div>
+                  <div className="text-xs font-mono">
+                    {event.estimated_cost ? (
+                      <span className="text-green-600 font-medium">${event.estimated_cost.toFixed(4)}</span>
+                    ) : (
+                      event.latency_ms ? `${event.latency_ms}ms` : "-"
+                    )}
+                  </div>
                   <div className="text-[10px] text-muted-foreground">
                     {format(new Date(event.created_at), "HH:mm:ss MMM d")}
                   </div>

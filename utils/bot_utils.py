@@ -73,7 +73,13 @@ async def ask_ai(
                 response = response_obj.choices[0].message.content
                 provider_name = forced_provider
                 latency = int((time.time() - start) * 1000)
-                tokens = response_obj.usage.total_tokens if hasattr(response_obj, "usage") else 0
+                
+                usage = response_obj.usage
+                input_tokens = usage.prompt_tokens if hasattr(usage, "prompt_tokens") else 0
+                output_tokens = usage.completion_tokens if hasattr(usage, "completion_tokens") else 0
+                total_tokens = usage.total_tokens if hasattr(usage, "total_tokens") else 0
+                from providers import _calculate_cost
+                cost = _calculate_cost(forced_provider, input_tokens, output_tokens)
                 
                 # Log analytics event manually for forced provider
                 await database.add_analytics_event(
@@ -82,7 +88,10 @@ async def ask_ai(
                     channel_id=str(channel_id),
                     user_id=user_id,
                     provider=forced_provider,
-                    tokens_used=tokens,
+                    tokens_used=total_tokens,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    estimated_cost=cost,
                     latency_ms=latency
                 )
             else:

@@ -117,6 +117,16 @@ def _build_providers() -> dict:
 # Provider configs — all use the OpenAI-compatible SDK
 PROVIDERS = _build_providers()
 
+# Provider pricing per 1M tokens (estimated in USD)
+# Format: { provider_name: { input: price, output: price } }
+PROVIDER_PRICING = {
+    "gemini": {"input": 0.0, "output": 0.0},      # Free tier assumed
+    "groq": {"input": 0.0, "output": 0.0},        # Free tier assumed
+    "openrouter": {"input": 0.0, "output": 0.0},  # Varies, assumed free for r1:free
+    "anthropic": {"input": 3.0, "output": 15.0},  # Claude 3.5 Sonnet approx
+    "openai": {"input": 0.15, "output": 0.60},    # GPT-4o-mini approx
+}
+
 # Build the free fallback chain (order matters)
 FREE_FALLBACK_CHAIN = ["gemini", "groq", "openrouter"]
 

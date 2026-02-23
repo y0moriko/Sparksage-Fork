@@ -156,6 +156,12 @@ export interface UsageResponse {
   guild_usage: Record<string, number>;
 }
 
+export interface CostSummary {
+  total_cost: number;
+  provider_costs: Array<{ provider: string; cost: number }>;
+  daily_costs: Array<{ day: string; cost: number }>;
+}
+
 export interface AnalyticsEvent {
   id: number;
   event_type: string;
@@ -358,6 +364,9 @@ export const api = {
 
   getAnalyticsUsage: (token: string, guildId?: string) =>
     apiFetch<UsageResponse>(`/api/analytics/usage${guildId ? `?guild_id=${guildId}` : ""}`, { token }),
+
+  getAnalyticsCosts: (token: string) =>
+    apiFetch<CostSummary>("/api/analytics/costs", { token }),
 
   getAnalyticsHistory: (token: string, limit: number = 100, guildId?: string) =>
     apiFetch<{ history: AnalyticsEvent[] }>(`/api/analytics/history?limit=${limit}${guildId ? `&guild_id=${guildId}` : ""}`, { token }),

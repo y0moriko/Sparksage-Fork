@@ -38,6 +38,13 @@ async def get_current_usage(
     }
 
 
+@router.get("/costs")
+async def get_cost_analytics(user: dict = Depends(get_current_user)):
+    """Get summarized cost analytics for the dashboard."""
+    costs = await db.get_cost_summary()
+    return costs
+
+
 @router.get("/history")
 async def get_analytics_history(
     limit: int = Query(100, ge=1, le=500),

@@ -112,6 +112,9 @@ async def init_db():
             user_id      TEXT,
             provider     TEXT,
             tokens_used  INTEGER,
+            input_tokens INTEGER,
+            output_tokens INTEGER,
+            estimated_cost REAL,
             latency_ms   INTEGER,
             created_at   TEXT DEFAULT (datetime('now'))
         );
@@ -144,6 +147,17 @@ async def init_db():
         await db.execute("ALTER TABLE conversations ADD COLUMN category TEXT")
     except aiosqlite.OperationalError:
         pass # Already exists
+
+    # Migration: Add cost tracking columns to analytics
+    for col in ["input_tokens", "output_tokens"]:
+        try:
+            await db.execute(f"ALTER TABLE analytics ADD COLUMN {col} INTEGER")
+        except aiosqlite.OperationalError:
+            pass
+    try:
+        await db.execute("ALTER TABLE analytics ADD COLUMN estimated_cost REAL")
+    except aiosqlite.OperationalError:
+        pass
         
     await db.commit()
 
@@ -667,16 +681,25 @@ async def add_analytics_event(
     user_id: str | None = None,
     provider: str | None = None,
     tokens_used: int | None = None,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+    estimated_cost: float | None = None,
     latency_ms: int | None = None,
 ):
     """Log an analytics event."""
     db = await get_db()
     await db.execute(
         """
-        INSERT INTO analytics (event_type, guild_id, channel_id, user_id, provider, tokens_used, latency_ms)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO analytics (
+            event_type, guild_id, channel_id, user_id, provider, 
+            tokens_used, input_tokens, output_tokens, estimated_cost, latency_ms
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (event_type, guild_id, channel_id, user_id, provider, tokens_used, latency_ms),
+        (
+            event_type, guild_id, channel_id, user_id, provider, 
+            tokens_used, input_tokens, output_tokens, estimated_cost, latency_ms
+        ),
     )
     await db.commit()
 
@@ -787,3 +810,43 @@ async def get_analytics_history(limit: int = 100, guild_id: str | None = None) -
     cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]
+
+
+async def get_cost_summary() -> dict:
+    """Get summarized cost analytics for the dashboard."""
+    db = await get_db()
+    
+    # Total cost
+    cursor = await db.execute("SELECT SUM(estimated_cost) as total FROM analytics")
+    row = await cursor.fetchone()
+    total_cost = row["total"] or 0.0
+    
+    # Cost per provider
+    cursor = await db.execute(
+        """
+        SELECT provider, SUM(estimated_cost) as cost
+        FROM analytics
+        WHERE estimated_cost IS NOT NULL
+        GROUP BY provider
+        """
+    )
+    provider_costs = [dict(row) for row in await cursor.fetchall()]
+    
+    # Cost per day (last 30 days)
+    cursor = await db.execute(
+        """
+        SELECT date(created_at) as day, SUM(estimated_cost) as cost
+        FROM analytics
+        WHERE estimated_cost IS NOT NULL
+        GROUP BY day
+        ORDER BY day DESC
+        LIMIT 30
+        """
+    )
+    daily_costs = [dict(row) for row in await cursor.fetchall()]
+    
+    return {
+        "total_cost": total_cost,
+        "provider_costs": provider_costs,
+        "daily_costs": list(reversed(daily_costs)),
+    }
