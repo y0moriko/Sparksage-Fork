@@ -131,7 +131,7 @@ export const api = {
     apiFetch<{ config: Record<string, string> }>("/api/config", { token }),
 
   updateConfig: (token: string, values: Record<string, string>) =>
-    apiFetch<{ status: string }>("/api/config", {
+    apiFetch<{ config: Record<string, string> }>("/api/config", {
       method: "PUT",
       body: JSON.stringify({ values }),
       token,
