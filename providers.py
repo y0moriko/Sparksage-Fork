@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import time
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 import config
 import db
 
 
-def _create_client(provider_name: str) -> OpenAI | None:
+def _create_client(provider_name: str) -> AsyncOpenAI | None:
     """Create an OpenAI-compatible client for the given provider."""
     provider = config.PROVIDERS.get(provider_name)
     if not provider or not provider["api_key"]:
@@ -16,7 +16,7 @@ def _create_client(provider_name: str) -> OpenAI | None:
     if provider_name == "anthropic":
         extra_headers["anthropic-version"] = "2023-06-01"
 
-    return OpenAI(
+    return AsyncOpenAI(
         base_url=provider["base_url"],
         api_key=provider["api_key"],
         default_headers=extra_headers or None,
@@ -44,7 +44,7 @@ def _build_clients() -> dict[str, OpenAI]:
 
 
 # Pre-build clients for all configured providers
-_clients: dict[str, OpenAI] = _build_clients()
+_clients: dict[str, AsyncOpenAI] = _build_clients()
 FALLBACK_ORDER = _build_fallback_order()
 
 
@@ -60,23 +60,34 @@ def get_available_providers() -> list[str]:
     return [name for name in FALLBACK_ORDER if name in _clients]
 
 
-async def test_provider(name: str) -> dict:
+async def test_provider(name: str, api_key: str | None = None) -> dict:
     """Test a provider with a minimal API call. Returns {success, latency_ms, error}."""
     provider = config.PROVIDERS.get(name)
     if not provider:
         return {"success": False, "latency_ms": 0, "error": f"Unknown provider: {name}"}
 
-    client = _clients.get(name)
-    if not client:
-        # Try creating a fresh client in case config was just updated
-        client = _create_client(name)
+    # Use the provided API key (for wizard) OR the shared client
+    if api_key:
+        client = AsyncOpenAI(
+            base_url=provider["base_url"],
+            api_key=api_key,
+        )
+    else:
+        client = _clients.get(name)
         if not client:
-            return {"success": False, "latency_ms": 0, "error": "No API key configured"}
+            # Try creating a fresh client in case config was just updated
+            client = _create_client(name)
+            if not client:
+                return {"success": False, "latency_ms": 0, "error": "No API key configured"}
+
+    model = provider["model"]
+    if name == "gemini" and not model.startswith("models/"):
+        model = f"models/{model}"
 
     start = time.time()
     try:
-        response = client.chat.completions.create(
-            model=provider["model"],
+        response = await client.chat.completions.create(
+            model=model,
             max_tokens=10,
             messages=[{"role": "user", "content": "Hi"}],
         )
@@ -116,10 +127,14 @@ async def chat(
             continue
 
         provider = config.PROVIDERS[provider_name]
+        model = provider["model"]
+        if provider_name == "gemini" and not model.startswith("models/"):
+            model = f"models/{model}"
+
         start = time.time()
         try:
-            response = client.chat.completions.create(
-                model=provider["model"],
+            response = await client.chat.completions.create(
+                model=model,
                 max_tokens=config.MAX_TOKENS,
                 messages=[
                     {"role": "system", "content": system_prompt},
