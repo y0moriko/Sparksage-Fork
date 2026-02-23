@@ -94,6 +94,18 @@ async def init_db():
             provider_name TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS analytics (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type   TEXT NOT NULL,
+            guild_id     TEXT,
+            channel_id   TEXT,
+            user_id      TEXT,
+            provider     TEXT,
+            tokens_used  INTEGER,
+            latency_ms   INTEGER,
+            created_at   TEXT DEFAULT (datetime('now'))
+        );
+
         INSERT OR IGNORE INTO wizard_state (id) VALUES (1);
         """
     )
@@ -467,3 +479,99 @@ async def close_db():
             del _db_connections[loop]
     except RuntimeError:
         pass
+
+
+# --- Analytics helpers ---
+
+
+async def add_analytics_event(
+    event_type: str,
+    guild_id: str | None = None,
+    channel_id: str | None = None,
+    user_id: str | None = None,
+    provider: str | None = None,
+    tokens_used: int | None = None,
+    latency_ms: int | None = None,
+):
+    """Log an analytics event."""
+    db = await get_db()
+    await db.execute(
+        """
+        INSERT INTO analytics (event_type, guild_id, channel_id, user_id, provider, tokens_used, latency_ms)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (event_type, guild_id, channel_id, user_id, provider, tokens_used, latency_ms),
+    )
+    await db.commit()
+
+
+async def get_analytics_summary() -> dict:
+    """Get summarized analytics for the dashboard."""
+    db = await get_db()
+    
+    # Messages per day
+    cursor = await db.execute(
+        """
+        SELECT date(created_at) as day, COUNT(*) as count
+        FROM analytics
+        WHERE event_type IN ('mention', 'command')
+        GROUP BY day
+        ORDER BY day DESC
+        LIMIT 30
+        """
+    )
+    messages_per_day = [dict(row) for row in await cursor.fetchall()]
+    
+    # Provider usage
+    cursor = await db.execute(
+        """
+        SELECT provider, COUNT(*) as count
+        FROM analytics
+        WHERE provider IS NOT NULL
+        GROUP BY provider
+        """
+    )
+    provider_usage = [dict(row) for row in await cursor.fetchall()]
+    
+    # Top channels
+    cursor = await db.execute(
+        """
+        SELECT channel_id, COUNT(*) as count
+        FROM analytics
+        GROUP BY channel_id
+        ORDER BY count DESC
+        LIMIT 10
+        """
+    )
+    top_channels = [dict(row) for row in await cursor.fetchall()]
+    
+    # Average latency
+    cursor = await db.execute(
+        """
+        SELECT date(created_at) as day, AVG(latency_ms) as avg_latency
+        FROM analytics
+        WHERE latency_ms IS NOT NULL
+        GROUP BY day
+        ORDER BY day DESC
+        LIMIT 30
+        """
+    )
+    avg_latency = [dict(row) for row in await cursor.fetchall()]
+    
+    return {
+        "messages_per_day": list(reversed(messages_per_day)),
+        "provider_usage": provider_usage,
+        "top_channels": top_channels,
+        "avg_latency": list(reversed(avg_latency)),
+    }
+
+
+async def get_analytics_history(limit: int = 100) -> list[dict]:
+    """Get detailed analytics event history."""
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT * FROM analytics ORDER BY id DESC LIMIT ?",
+        (limit,)
+    )
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]

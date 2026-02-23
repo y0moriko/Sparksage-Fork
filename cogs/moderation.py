@@ -50,7 +50,13 @@ class Moderation(commands.Cog):
         print(f"DEBUG: Checking message: '{message.content}' with sensitivity: {sensitivity}")
         
         try:
-            response_text, _ = providers.chat(messages, prompt)
+            response_text, _ = await providers.chat(
+                messages, 
+                prompt,
+                guild_id=str(message.guild.id) if message.guild else None,
+                channel_id=str(message.channel.id),
+                user_id=str(message.author.id)
+            )
             print(f"DEBUG: AI Response: {response_text}")
             
             # Clean response text
@@ -122,6 +128,15 @@ class Moderation(commands.Cog):
                 message.content,
                 reason,
                 severity
+            )
+
+            # Log to Analytics
+            await database.add_analytics_event(
+                event_type="moderation",
+                guild_id=str(message.guild.id),
+                channel_id=str(message.channel.id),
+                user_id=str(message.author.id),
+                provider="moderation:flagged"
             )
         except Exception as e:
             print(f"Moderation Log Error: {e}")

@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from openai import OpenAI
 import config
+import db
 
 
 def _create_client(provider_name: str) -> OpenAI | None:
@@ -59,7 +60,7 @@ def get_available_providers() -> list[str]:
     return [name for name in FALLBACK_ORDER if name in _clients]
 
 
-def test_provider(name: str) -> dict:
+async def test_provider(name: str) -> dict:
     """Test a provider with a minimal API call. Returns {success, latency_ms, error}."""
     provider = config.PROVIDERS.get(name)
     if not provider:
@@ -72,21 +73,36 @@ def test_provider(name: str) -> dict:
         if not client:
             return {"success": False, "latency_ms": 0, "error": "No API key configured"}
 
+    start = time.time()
     try:
-        start = time.time()
         response = client.chat.completions.create(
             model=provider["model"],
             max_tokens=10,
             messages=[{"role": "user", "content": "Hi"}],
         )
         latency = int((time.time() - start) * 1000)
+        
+        # Log analytics event
+        await db.add_analytics_event(
+            event_type="test_provider",
+            provider=name,
+            latency_ms=latency,
+            tokens_used=response.usage.total_tokens if hasattr(response, "usage") else None
+        )
+        
         return {"success": True, "latency_ms": latency, "error": None}
     except Exception as e:
         latency = int((time.time() - start) * 1000)
         return {"success": False, "latency_ms": latency, "error": str(e)}
 
 
-def chat(messages: list[dict], system_prompt: str) -> tuple[str, str]:
+async def chat(
+    messages: list[dict], 
+    system_prompt: str,
+    guild_id: str | None = None,
+    channel_id: str | None = None,
+    user_id: str | None = None
+) -> tuple[str, str]:
     """Send messages to AI and return (response_text, provider_name).
 
     Tries the primary provider first, then falls back through free providers.
@@ -100,6 +116,7 @@ def chat(messages: list[dict], system_prompt: str) -> tuple[str, str]:
             continue
 
         provider = config.PROVIDERS[provider_name]
+        start = time.time()
         try:
             response = client.chat.completions.create(
                 model=provider["model"],
@@ -110,6 +127,20 @@ def chat(messages: list[dict], system_prompt: str) -> tuple[str, str]:
                 ],
             )
             text = response.choices[0].message.content
+            latency = int((time.time() - start) * 1000)
+            tokens = response.usage.total_tokens if hasattr(response, "usage") else 0
+
+            # Log analytics event
+            await db.add_analytics_event(
+                event_type="mention",
+                guild_id=guild_id,
+                channel_id=channel_id,
+                user_id=user_id,
+                provider=provider_name,
+                tokens_used=tokens,
+                latency_ms=latency
+            )
+
             return text, provider_name
 
         except Exception as e:

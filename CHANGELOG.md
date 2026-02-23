@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0] - 2026-02-23
+
+### Added
+- **Analytics & Usage Tracking** — Comprehensive dashboard for visualizing bot activity and AI provider usage.
+- **Analytics Dashboard Page** — New page with interactive charts for messages per day, provider distribution, top channels, and latency.
+- **Analytics API Endpoints** — Backend endpoints `/api/analytics/summary` and `/api/analytics/history` for data retrieval.
+- **`analytics` Database Table** — New table to track events including command usage, mentions, moderation actions, and AI performance metrics.
+- **AI Call Instrumentation** — Automated logging of tokens used and response latency for every AI interaction.
+- **Command Tracking** — Automatic recording of command execution across all bot cogs for usage analysis.
+
+### Changed
+- **`providers.py`** — Refactored `chat()` and `test_provider()` to be asynchronous and support detailed usage logging.
+- **`utils/bot_utils.py`** — Updated `ask_ai()` to propagate guild and user context for accurate analytics reporting.
+
 ## [0.4.4] - 2026-02-21
 
 ### Added

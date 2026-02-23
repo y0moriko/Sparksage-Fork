@@ -17,7 +17,9 @@ async def ask_ai(
     user_name: str, 
     message: str, 
     system_prompt: str | None = None,
-    category: str | None = None
+    category: str | None = None,
+    guild_id: str | None = None,
+    user_id: str | None = None
 ) -> tuple[str, str]:
     """Send a message to AI and return (response, provider_name)."""
     # Check for channel overrides
@@ -43,6 +45,8 @@ async def ask_ai(
             from providers import _clients
             client = _clients.get(forced_provider)
             if client:
+                import time
+                start = time.time()
                 prov_cfg = config.PROVIDERS[forced_provider]
                 response_obj = client.chat.completions.create(
                     model=prov_cfg["model"],
@@ -54,11 +58,28 @@ async def ask_ai(
                 )
                 response = response_obj.choices[0].message.content
                 provider_name = forced_provider
+                latency = int((time.time() - start) * 1000)
+                tokens = response_obj.usage.total_tokens if hasattr(response_obj, "usage") else 0
+                
+                # Log analytics event manually for forced provider
+                await database.add_analytics_event(
+                    event_type="mention",
+                    guild_id=guild_id,
+                    channel_id=str(channel_id),
+                    user_id=user_id,
+                    provider=forced_provider,
+                    tokens_used=tokens,
+                    latency_ms=latency
+                )
             else:
                 # Fallback to normal chat if forced client not found
-                response, provider_name = providers.chat(history, prompt)
+                response, provider_name = await providers.chat(
+                    history, prompt, guild_id=guild_id, channel_id=str(channel_id), user_id=user_id
+                )
         else:
-            response, provider_name = providers.chat(history, prompt)
+            response, provider_name = await providers.chat(
+                history, prompt, guild_id=guild_id, channel_id=str(channel_id), user_id=user_id
+            )
             
         # Store assistant response in DB
         await database.add_message(str(channel_id), "assistant", response, provider=provider_name, category=category)

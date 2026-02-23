@@ -6,6 +6,7 @@ import providers
 import datetime
 import asyncio
 from utils.permissions import has_command_permission
+import db
 
 class Digest(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -70,6 +71,9 @@ class Digest(commands.Cog):
         yesterday = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
         summary_data = []
 
+        # Use the first guild for logging if multiple guilds exist (digest is typically cross-channel but per-bot)
+        primary_guild_id = str(self.bot.guilds[0].id) if self.bot.guilds else None
+
         for guild in self.bot.guilds:
             for channel in guild.text_channels:
                 # Basic permission check
@@ -106,7 +110,13 @@ class Digest(commands.Cog):
         
         try:
             messages = [{"role": "user", "content": f"Here is the activity log:\n\n{activity_text}"}]
-            response, provider_name = providers.chat(messages, prompt)
+            response, provider_name = await providers.chat(
+                messages, 
+                prompt,
+                guild_id=primary_guild_id,
+                channel_id=str(config.DIGEST_CHANNEL_ID),
+                user_id="system:digest"
+            )
             
             # Post to digest channel
             embed = discord.Embed(

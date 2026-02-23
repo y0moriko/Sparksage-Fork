@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import {
   Zap,
   LayoutDashboard,
+  BarChart3,
   Cpu,
   Settings,
   MessageSquare,
@@ -31,6 +32,7 @@ import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { title: "Providers", href: "/dashboard/providers", icon: Cpu },
   { title: "FAQs", href: "/dashboard/faqs", icon: HelpCircle },
   { title: "Permissions", href: "/dashboard/permissions", icon: Shield },

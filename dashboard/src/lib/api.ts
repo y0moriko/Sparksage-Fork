@@ -96,6 +96,25 @@ export interface ChannelOverride {
   provider_name: string | null;
 }
 
+export interface AnalyticsSummary {
+  messages_per_day: Array<{ day: string; count: number }>;
+  provider_usage: Array<{ provider: string; count: number }>;
+  top_channels: Array<{ channel_id: string; count: number }>;
+  avg_latency: Array<{ day: string; avg_latency: number }>;
+}
+
+export interface AnalyticsEvent {
+  id: number;
+  event_type: string;
+  guild_id: string | null;
+  channel_id: string | null;
+  user_id: string | null;
+  provider: string | null;
+  tokens_used: number | null;
+  latency_ms: number | null;
+  created_at: string;
+}
+
 export const api = {
   // Auth
   login: (password: string) =>
@@ -217,4 +236,11 @@ export const api = {
       method: "DELETE",
       token,
     }),
+
+  // Analytics
+  getAnalyticsSummary: (token: string) =>
+    apiFetch<AnalyticsSummary>("/api/analytics/summary", { token }),
+
+  getAnalyticsHistory: (token: string, limit: number = 100) =>
+    apiFetch<{ history: AnalyticsEvent[] }>(`/api/analytics/history?limit=${limit}`, { token }),
 };
