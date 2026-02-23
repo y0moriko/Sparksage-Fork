@@ -59,8 +59,6 @@ async def ask_ai(
                 start = time.time()
                 prov_cfg = config.PROVIDERS[forced_provider]
                 model = prov_cfg["model"]
-                if forced_provider == "gemini" and not model.startswith("models/"):
-                    model = f"models/{model}"
 
                 response_obj = await client.chat.completions.create(
                     model=model,

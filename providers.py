@@ -91,14 +91,10 @@ async def test_provider(name: str, api_key: str | None = None) -> dict:
             if not client:
                 return {"success": False, "latency_ms": 0, "error": "No API key configured"}
 
-    model = provider["model"]
-    if name == "gemini" and not model.startswith("models/"):
-        model = f"models/{model}"
-
     start = time.time()
     try:
         response = await client.chat.completions.create(
-            model=model,
+            model=provider["model"],
             max_tokens=10,
             messages=[{"role": "user", "content": "Hi"}],
         )
@@ -148,8 +144,6 @@ async def chat(
 
         provider = config.PROVIDERS[provider_name]
         model = provider["model"]
-        if provider_name == "gemini" and not model.startswith("models/"):
-            model = f"models/{model}"
 
         start = time.time()
         try:
