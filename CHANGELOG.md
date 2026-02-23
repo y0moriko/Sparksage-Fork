@@ -14,16 +14,23 @@
 - **`providers.py`** — Refactored `chat()` and `test_provider()` to be asynchronous and support detailed usage logging.
 - **`utils/bot_utils.py`** — Updated `ask_ai()` to propagate guild and user context for accurate analytics reporting.
 
+## [0.4.5] - 2026-02-21
+
+### Added
+- **Per-Channel AI Overrides** — Ability to configure unique system prompts (personas) and force specific AI providers for individual Discord channels.
+- **Advanced Channel Settings UI** — New tabbed interface in the dashboard for managing channel personas and provider overrides.
+- **Channel Override Commands** — New `/prompt set/reset` and `/channel-provider set/reset` Discord commands for real-time configuration.
+- **Expanded Database Schema** — Added `channel_prompts` and `channel_providers` tables for granular bot behavior management.
+- **Channel Browsing API** — Added server and channel dropdowns to the dashboard for easy selection of override targets.
+
 ## [0.4.4] - 2026-02-21
 
 ### Added
-- **Per-Channel AI Overrides** — Configure unique system prompts and force specific AI providers on a per-channel basis.
-- **Channel Settings Page** — New dashboard page for managing AI behavior overrides for individual Discord channels.
-- **Channel Overrides API** — Backend infrastructure for storing and retrieving channel-specific configuration.
-- **`channel_overrides` Database Table** — Persistent storage for per-channel AI settings.
-
-### Changed
-- **`utils/bot_utils.py`** — Enhanced `ask_ai` logic to dynamically apply channel overrides before global settings.
+- **Per-Channel AI Overrides** — Ability to configure unique system prompts (personas) and force specific AI providers for individual Discord channels.
+- **Advanced Channel Settings UI** — New tabbed interface in the dashboard for managing channel personas and provider overrides.
+- **Channel Override Commands** — New `/prompt set/reset` and `/channel-provider set/reset` Discord commands for real-time configuration.
+- **Expanded Database Schema** — Added `channel_prompts` and `channel_providers` tables for granular bot behavior management.
+- **Channel Browsing API** — Added server and channel dropdowns to the dashboard for easy selection of override targets.
 
 ## [0.4.3] - 2026-02-21
 
@@ -103,23 +110,6 @@ After (v0.3):
             SQLite DB (config, conversations, sessions, wizard)
 ```
 
-### Files Added
-
-| File | Description |
-|------|-------------|
-| `db.py` | SQLite database layer (aiosqlite) |
-| `run.py` | Unified launcher (bot + FastAPI) |
-| `api/main.py` | FastAPI app factory with CORS |
-| `api/auth.py` | JWT + password auth utilities |
-| `api/deps.py` | Dependency injection |
-| `api/routes/auth.py` | Login + user endpoints |
-| `api/routes/config.py` | Config CRUD endpoints |
-| `api/routes/providers.py` | Provider management + test endpoints |
-| `api/routes/bot.py` | Bot status endpoint |
-| `api/routes/conversations.py` | Conversation CRUD endpoints |
-| `api/routes/wizard.py` | Setup wizard endpoints |
-| `dashboard/` | Full Next.js + shadcn/ui admin dashboard (23 UI components, 4 wizard steps, 4 dashboard pages, auth, sidebar nav) |
-
 ---
 
 ## [0.2.0] - 2026-02-18
@@ -138,34 +128,6 @@ After (v0.3):
 - **`.env.example`** — now includes all 5 providers (3 free + 2 paid) with setup links and rate limit notes
 - **`bot.py`** — refactored `ask_claude()` → `ask_ai()`, removed Anthropic-specific code, integrated `providers.py`
 - **`docs/PRODUCT_DESIGN.md`** — updated architecture diagram, added provider comparison tables, updated roadmap
-
-### Architecture
-
-```
-Before (v0.1):
-  Discord → bot.py → Anthropic SDK → Claude API (paid only)
-
-After (v0.2):
-  Discord → bot.py → providers.py → OpenAI-compatible SDK
-                                       ├── Gemini (free)
-                                       ├── Groq (free)
-                                       ├── OpenRouter (free)
-                                       ├── Anthropic (paid, optional)
-                                       └── OpenAI (paid, optional)
-```
-
-### Files Changed
-
-| File | Action | Description |
-|------|--------|-------------|
-| `providers.py` | **Created** | Multi-provider client with automatic fallback logic |
-| `bot.py` | Modified | Refactored to use `providers.py`, added `/provider` command, response footer |
-| `config.py` | Modified | Multi-provider config, provider definitions, fallback chain |
-| `requirements.txt` | Modified | `anthropic` → `openai` SDK |
-| `.env.example` | Modified | All 5 providers with API key placeholders and docs links |
-| `.env` | **Created** | Dummy keys for local development |
-| `CHANGELOG.md` | **Created** | This file |
-| `docs/PRODUCT_DESIGN.md` | Modified | Updated architecture, provider comparison, roadmap |
 
 ---
 

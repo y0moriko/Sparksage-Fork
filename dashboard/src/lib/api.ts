@@ -67,6 +67,12 @@ export interface BotStatus {
   uptime?: number | null;
 }
 
+export interface DiscordChannel {
+  id: string;
+  name: string;
+  type: string;
+}
+
 export interface CommandPermission {
   command_name: string;
   guild_id: string;
@@ -90,8 +96,21 @@ export interface FAQItem {
   created_at: string;
 }
 
+export interface ChannelPrompt {
+  channel_id: string;
+  guild_id: string;
+  system_prompt: string;
+}
+
+export interface ChannelProvider {
+  channel_id: string;
+  guild_id: string;
+  provider_name: string;
+}
+
 export interface ChannelOverride {
   channel_id: string;
+  guild_id: string;
   system_prompt: string | null;
   provider_name: string | null;
 }
@@ -159,6 +178,9 @@ export const api = {
   getBotStatus: (token: string) =>
     apiFetch<BotStatus>("/api/bot/status", { token }),
 
+  getGuildChannels: (token: string, guildId: string) =>
+    apiFetch<{ channels: DiscordChannel[] }>(`/api/bot/guilds/${guildId}/channels`, { token }),
+
   // Conversations
   getConversations: (token: string) =>
     apiFetch<{ channels: ChannelItem[] }>("/api/conversations", { token }),
@@ -214,13 +236,47 @@ export const api = {
       token,
     }),
 
-  removePermission: (token: string, commandName: string, guildId: string, roleId: string) =>
-    apiFetch<{ status: string }>(`/api/permissions?command_name=${commandName}&guild_id=${guildId}&role_id=${roleId}`, {
+  removePermission: (token: string, commandName: string, guild_id: string, roleId: string) =>
+    apiFetch<{ status: string }>(`/api/permissions?command_name=${commandName}&guild_id=${guild_id}&role_id=${roleId}`, {
       method: "DELETE",
       token,
     }),
 
-  // Channels
+  // Prompts
+  getChannelPrompts: (token: string) =>
+    apiFetch<{ prompts: ChannelPrompt[] }>("/api/prompts/prompts", { token }),
+
+  setChannelPrompt: (token: string, data: ChannelPrompt) =>
+    apiFetch<{ status: string }>("/api/prompts/prompts", {
+      method: "POST",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  deleteChannelPrompt: (token: string, channelId: string) =>
+    apiFetch<{ status: string }>(`/api/prompts/prompts/${channelId}`, {
+      method: "DELETE",
+      token,
+    }),
+
+  // Channel Providers
+  getChannelProviders: (token: string) =>
+    apiFetch<{ providers: ChannelProvider[] }>("/api/prompts/providers", { token }),
+
+  setChannelProvider: (token: string, data: ChannelProvider) =>
+    apiFetch<{ status: string }>("/api/prompts/providers", {
+      method: "POST",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  deleteChannelProvider: (token: string, channelId: string) =>
+    apiFetch<{ status: string }>(`/api/prompts/providers/${channelId}`, {
+      method: "DELETE",
+      token,
+    }),
+
+  // Overrides (Legacy compatibility if needed)
   getChannelOverrides: (token: string) =>
     apiFetch<{ overrides: ChannelOverride[] }>("/api/channels/overrides", { token }),
 

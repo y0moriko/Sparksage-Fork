@@ -88,10 +88,16 @@ async def init_db():
             created_at      TEXT    DEFAULT (datetime('now'))
         );
 
-        CREATE TABLE IF NOT EXISTS channel_overrides (
+        CREATE TABLE IF NOT EXISTS channel_prompts (
             channel_id    TEXT PRIMARY KEY,
-            system_prompt TEXT,
-            provider_name TEXT
+            guild_id      TEXT NOT NULL,
+            system_prompt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS channel_providers (
+            channel_id    TEXT PRIMARY KEY,
+            guild_id      TEXT NOT NULL,
+            provider_name TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS analytics (
@@ -365,41 +371,78 @@ async def get_moderation_events(guild_id: str | None = None, limit: int = 50) ->
     return [dict(row) for row in rows]
 
 
-# --- Channel Override helpers ---
+# --- Channel Prompt helpers ---
 
 
-async def set_channel_override(channel_id: str, system_prompt: str | None = None, provider_name: str | None = None):
-    """Set per-channel AI overrides."""
+async def set_channel_prompt(channel_id: str, guild_id: str, system_prompt: str):
+    """Set a custom system prompt for a channel."""
     db = await get_db()
     await db.execute(
-        "INSERT INTO channel_overrides (channel_id, system_prompt, provider_name) VALUES (?, ?, ?) "
-        "ON CONFLICT(channel_id) DO UPDATE SET system_prompt = excluded.system_prompt, provider_name = excluded.provider_name",
-        (channel_id, system_prompt, provider_name),
+        "INSERT INTO channel_prompts (channel_id, guild_id, system_prompt) VALUES (?, ?, ?) "
+        "ON CONFLICT(channel_id) DO UPDATE SET system_prompt = excluded.system_prompt",
+        (channel_id, guild_id, system_prompt),
     )
     await db.commit()
 
 
-async def get_channel_override(channel_id: str) -> dict | None:
-    """Get AI overrides for a specific channel."""
+async def get_channel_prompt(channel_id: str) -> str | None:
+    """Get the custom system prompt for a channel."""
     db = await get_db()
-    cursor = await db.execute("SELECT * FROM channel_overrides WHERE channel_id = ?", (channel_id,))
+    cursor = await db.execute("SELECT system_prompt FROM channel_prompts WHERE channel_id = ?", (channel_id,))
     row = await cursor.fetchone()
-    return dict(row) if row else None
+    return row["system_prompt"] if row else None
 
 
-async def list_channel_overrides() -> list[dict]:
-    """List all channel overrides."""
+async def delete_channel_prompt(channel_id: str):
+    """Delete a custom system prompt for a channel."""
     db = await get_db()
-    cursor = await db.execute("SELECT * FROM channel_overrides")
+    await db.execute("DELETE FROM channel_prompts WHERE channel_id = ?", (channel_id,))
+    await db.commit()
+
+
+async def list_channel_prompts() -> list[dict]:
+    """List all custom channel prompts."""
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM channel_prompts")
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]
 
 
-async def delete_channel_override(channel_id: str):
-    """Delete AI overrides for a channel."""
+# --- Channel Provider helpers ---
+
+
+async def set_channel_provider(channel_id: str, guild_id: str, provider_name: str):
+    """Set a custom AI provider for a channel."""
     db = await get_db()
-    await db.execute("DELETE FROM channel_overrides WHERE channel_id = ?", (channel_id,))
+    await db.execute(
+        "INSERT INTO channel_providers (channel_id, guild_id, provider_name) VALUES (?, ?, ?) "
+        "ON CONFLICT(channel_id) DO UPDATE SET provider_name = excluded.provider_name",
+        (channel_id, guild_id, provider_name),
+    )
     await db.commit()
+
+
+async def get_channel_provider(channel_id: str) -> str | None:
+    """Get the custom AI provider for a channel."""
+    db = await get_db()
+    cursor = await db.execute("SELECT provider_name FROM channel_providers WHERE channel_id = ?", (channel_id,))
+    row = await cursor.fetchone()
+    return row["provider_name"] if row else None
+
+
+async def delete_channel_provider(channel_id: str):
+    """Delete a custom AI provider for a channel."""
+    db = await get_db()
+    await db.execute("DELETE FROM channel_providers WHERE channel_id = ?", (channel_id,))
+    await db.commit()
+
+
+async def list_channel_providers() -> list[dict]:
+    """List all custom channel providers."""
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM channel_providers")
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]
 
 
 # --- Wizard helpers ---
