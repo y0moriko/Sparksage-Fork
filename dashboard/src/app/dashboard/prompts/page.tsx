@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2, Plus, MessageSquare, Trash2, UserCircle, Cpu, RefreshCw } from "lucide-react";
+import { Loader2, Plus, MessageSquare, Trash2, Hash, Cpu, RefreshCw } from "lucide-react";
 import { api, type ChannelPrompt, type ChannelProvider, type BotStatus, type ProviderItem, type DiscordChannel } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -190,7 +190,7 @@ export default function PromptsPage() {
       <Tabs defaultValue="personas" className="space-y-6">
         <TabsList>
           <TabsTrigger value="personas" className="flex items-center gap-2">
-            <UserCircle className="h-4 w-4" /> Personas
+            <Hash className="h-4 w-4" /> Personas
           </TabsTrigger>
           <TabsTrigger value="providers" className="flex items-center gap-2">
             <Cpu className="h-4 w-4" /> Providers
@@ -262,7 +262,7 @@ export default function PromptsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <UserCircle className="h-4 w-4 text-purple-600" />
+                <Hash className="h-4 w-4 text-purple-600" />
                 Active Personas
               </CardTitle>
             </CardHeader>

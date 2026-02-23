@@ -14,6 +14,7 @@ import {
   LogOut,
   HelpCircle,
   Shield,
+  Hash,
   UserCircle,
 } from "lucide-react";
 import {
@@ -36,7 +37,7 @@ const NAV_ITEMS = [
   { title: "Providers", href: "/dashboard/providers", icon: Cpu },
   { title: "FAQs", href: "/dashboard/faqs", icon: HelpCircle },
   { title: "Permissions", href: "/dashboard/permissions", icon: Shield },
-  { title: "Personas", href: "/dashboard/prompts", icon: UserCircle },
+  { title: "Channels", href: "/dashboard/prompts", icon: Hash },
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
   { title: "Conversations", href: "/dashboard/conversations", icon: MessageSquare },
 ];
