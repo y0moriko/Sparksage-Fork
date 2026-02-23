@@ -16,15 +16,12 @@ export default function DashboardLayout({
       <SidebarProvider>
         <AppSidebar />
         <main className="flex-1">
-          <header className="flex h-14 items-center justify-between border-b px-4">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger />
-              <Separator orientation="vertical" className="h-6" />
-              <span className="text-sm font-medium text-muted-foreground">
-                SparkSage Dashboard
-              </span>
-            </div>
-            <ModeToggle />
+          <header className="flex h-14 items-center gap-2 border-b px-4">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="h-6" />
+            <span className="text-sm font-medium text-muted-foreground">
+              SparkSage Dashboard
+            </span>
           </header>
           <div className="p-6">{children}</div>
         </main>

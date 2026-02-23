@@ -32,6 +32,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { ModeToggle } from "@/components/ui/mode-toggle";
 
 const GENERAL_ITEMS = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -58,11 +59,14 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Zap className="h-4 w-4" />
+        <div className="flex items-center justify-between px-2 py-1">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Zap className="h-4 w-4" />
+            </div>
+            <span className="font-semibold">SparkSage</span>
           </div>
-          <span className="font-semibold">SparkSage</span>
+          <ModeToggle />
         </div>
       </SidebarHeader>
       <SidebarContent>
