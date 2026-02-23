@@ -2,6 +2,7 @@ from __future__ import annotations
 import config
 import providers
 import db as database
+from utils.rate_limiter import limiter
 
 MAX_HISTORY = 20
 
@@ -22,6 +23,17 @@ async def ask_ai(
     user_id: str | None = None
 ) -> tuple[str, str]:
     """Send a message to AI and return (response, provider_name)."""
+    # 1. Check Rate Limits
+    if user_id:
+        is_limited, retry_after = limiter.check_user(user_id)
+        if is_limited:
+            return f"⚠️ You are sending requests too fast! Please try again in {retry_after}s.", "none"
+    
+    if guild_id:
+        is_limited, retry_after = limiter.check_guild(guild_id)
+        if is_limited:
+            return f"⚠️ This server has reached its AI rate limit. Please try again in {retry_after}s.", "none"
+
     # Check for channel-specific prompt and provider
     channel_prompt = await database.get_channel_prompt(str(channel_id))
     forced_provider = await database.get_channel_provider(str(channel_id))

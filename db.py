@@ -201,6 +201,8 @@ async def sync_env_to_db():
         "BOT_PREFIX": cfg.BOT_PREFIX,
         "MAX_TOKENS": str(cfg.MAX_TOKENS),
         "SYSTEM_PROMPT": cfg.SYSTEM_PROMPT,
+        "RATE_LIMIT_USER": str(cfg.RATE_LIMIT_USER),
+        "RATE_LIMIT_GUILD": str(cfg.RATE_LIMIT_GUILD),
         "WELCOME_ENABLED": "true" if cfg.WELCOME_ENABLED else "false",
         "WELCOME_CHANNEL_ID": cfg.WELCOME_CHANNEL_ID,
         "WELCOME_MESSAGE": cfg.WELCOME_MESSAGE,
@@ -644,56 +646,85 @@ async def add_analytics_event(
     await db.commit()
 
 
-async def get_analytics_summary() -> dict:
+async def get_analytics_summary(guild_id: str | None = None) -> dict:
     """Get summarized analytics for the dashboard."""
     db = await get_db()
     
+    where_clause = "WHERE event_type IN ('mention', 'command')"
+    params = []
+    if guild_id:
+        where_clause += " AND guild_id = ?"
+        params.append(guild_id)
+
     # Messages per day
     cursor = await db.execute(
-        """
+        f"""
         SELECT date(created_at) as day, COUNT(*) as count
         FROM analytics
-        WHERE event_type IN ('mention', 'command')
+        {where_clause}
         GROUP BY day
         ORDER BY day DESC
         LIMIT 30
-        """
+        """,
+        params
     )
     messages_per_day = [dict(row) for row in await cursor.fetchall()]
     
     # Provider usage
+    where_prov = "WHERE provider IS NOT NULL"
+    params_prov = []
+    if guild_id:
+        where_prov += " AND guild_id = ?"
+        params_prov.append(guild_id)
+
     cursor = await db.execute(
-        """
+        f"""
         SELECT provider, COUNT(*) as count
         FROM analytics
-        WHERE provider IS NOT NULL
+        {where_prov}
         GROUP BY provider
-        """
+        """,
+        params_prov
     )
     provider_usage = [dict(row) for row in await cursor.fetchall()]
     
     # Top channels
+    where_chan = "WHERE channel_id IS NOT NULL"
+    params_chan = []
+    if guild_id:
+        where_chan += " AND guild_id = ?"
+        params_chan.append(guild_id)
+
     cursor = await db.execute(
-        """
+        f"""
         SELECT channel_id, COUNT(*) as count
         FROM analytics
+        {where_chan}
         GROUP BY channel_id
         ORDER BY count DESC
         LIMIT 10
-        """
+        """,
+        params_chan
     )
     top_channels = [dict(row) for row in await cursor.fetchall()]
     
     # Average latency
+    where_lat = "WHERE latency_ms IS NOT NULL"
+    params_lat = []
+    if guild_id:
+        where_lat += " AND guild_id = ?"
+        params_lat.append(guild_id)
+
     cursor = await db.execute(
-        """
+        f"""
         SELECT date(created_at) as day, AVG(latency_ms) as avg_latency
         FROM analytics
-        WHERE latency_ms IS NOT NULL
+        {where_lat}
         GROUP BY day
         ORDER BY day DESC
         LIMIT 30
-        """
+        """,
+        params_lat
     )
     avg_latency = [dict(row) for row in await cursor.fetchall()]
     
@@ -705,12 +736,19 @@ async def get_analytics_summary() -> dict:
     }
 
 
-async def get_analytics_history(limit: int = 100) -> list[dict]:
+async def get_analytics_history(limit: int = 100, guild_id: str | None = None) -> list[dict]:
     """Get detailed analytics event history."""
     db = await get_db()
-    cursor = await db.execute(
-        "SELECT * FROM analytics ORDER BY id DESC LIMIT ?",
-        (limit,)
-    )
+    
+    query = "SELECT * FROM analytics"
+    params = []
+    if guild_id:
+        query += " WHERE guild_id = ?"
+        params.append(guild_id)
+    
+    query += " ORDER BY id DESC LIMIT ?"
+    params.append(limit)
+
+    cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]

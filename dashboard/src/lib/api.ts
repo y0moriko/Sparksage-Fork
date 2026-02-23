@@ -140,6 +140,11 @@ export interface AnalyticsSummary {
   avg_latency: Array<{ day: string; avg_latency: number }>;
 }
 
+export interface UsageResponse {
+  user_usage: Record<string, number>;
+  guild_usage: Record<string, number>;
+}
+
 export interface AnalyticsEvent {
   id: number;
   event_type: string;
@@ -326,9 +331,12 @@ export const api = {
     }),
 
   // Analytics
-  getAnalyticsSummary: (token: string) =>
-    apiFetch<AnalyticsSummary>("/api/analytics/summary", { token }),
+  getAnalyticsSummary: (token: string, guildId?: string) =>
+    apiFetch<AnalyticsSummary>(`/api/analytics/summary${guildId ? `?guild_id=${guildId}` : ""}`, { token }),
 
-  getAnalyticsHistory: (token: string, limit: number = 100) =>
-    apiFetch<{ history: AnalyticsEvent[] }>(`/api/analytics/history?limit=${limit}`, { token }),
+  getAnalyticsUsage: (token: string, guildId?: string) =>
+    apiFetch<UsageResponse>(`/api/analytics/usage${guildId ? `?guild_id=${guildId}` : ""}`, { token }),
+
+  getAnalyticsHistory: (token: string, limit: number = 100, guildId?: string) =>
+    apiFetch<{ history: AnalyticsEvent[] }>(`/api/analytics/history?limit=${limit}${guildId ? `&guild_id=${guildId}` : ""}`, { token }),
 };

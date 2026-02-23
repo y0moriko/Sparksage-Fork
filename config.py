@@ -37,6 +37,10 @@ SYSTEM_PROMPT = os.getenv(
     "Be concise, helpful, and engaging.",
 )
 
+# Rate limiting
+RATE_LIMIT_USER = int(os.getenv("RATE_LIMIT_USER", "5")) # Requests per minute
+RATE_LIMIT_GUILD = int(os.getenv("RATE_LIMIT_GUILD", "20")) # Requests per minute
+
 # Onboarding settings
 WELCOME_ENABLED = os.getenv("WELCOME_ENABLED", "false").lower() == "true"
 WELCOME_CHANNEL_ID = os.getenv("WELCOME_CHANNEL_ID", "")
@@ -137,6 +141,8 @@ def reload_from_db(db_config: dict[str, str]):
         "BOT_PREFIX": str,
         "MAX_TOKENS": int,
         "SYSTEM_PROMPT": str,
+        "RATE_LIMIT_USER": int,
+        "RATE_LIMIT_GUILD": int,
         "WELCOME_ENABLED": lambda v: str(v).lower() == "true",
         "WELCOME_CHANNEL_ID": str,
         "WELCOME_MESSAGE": str,
