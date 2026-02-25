@@ -32,6 +32,7 @@ class SparkSageBot(commands.Bot):
             "cogs.moderation",
             "cogs.translate",
             "cogs.prompts",
+            "cogs.custom_commands",
         ]
         for extension in initial_extensions:
             try:
@@ -119,13 +120,22 @@ async def on_message(message: discord.Message):
         if not clean_content:
             clean_content = "Hello!"
 
+        # Handle image attachments for vision
+        image_url = None
+        if message.attachments:
+            for attachment in message.attachments:
+                if any(attachment.filename.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp", ".gif"]):
+                    image_url = attachment.url
+                    break
+
         async with message.channel.typing():
             response, provider_name = await ask_ai(
                 message.channel.id, 
                 message.author.display_name, 
                 clean_content,
                 guild_id=str(message.guild.id) if message.guild else None,
-                user_id=str(message.author.id)
+                user_id=str(message.author.id),
+                image_url=image_url
             )
 
         # Split long responses (Discord 2000 char limit)

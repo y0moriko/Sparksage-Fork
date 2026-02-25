@@ -128,7 +128,8 @@ async def chat(
     system_prompt: str,
     guild_id: str | None = None,
     channel_id: str | None = None,
-    user_id: str | None = None
+    user_id: str | None = None,
+    image_url: str | None = None
 ) -> tuple[str, str]:
     """Send messages to AI and return (response_text, provider_name).
 
@@ -145,15 +146,29 @@ async def chat(
         provider = config.PROVIDERS[provider_name]
         model = provider["model"]
 
+        # Build message payload
+        payload = [
+            {"role": "system", "content": system_prompt},
+            *messages,
+        ]
+
+        # If image is provided, add it to the LAST message (current user input)
+        # Note: We assume the last message in 'messages' is the most recent user input
+        if image_url and messages:
+            last_msg = messages[-1]
+            if last_msg["role"] == "user":
+                last_msg_content = last_msg["content"]
+                last_msg["content"] = [
+                    {"type": "text", "text": last_msg_content},
+                    {"type": "image_url", "image_url": {"url": image_url}}
+                ]
+
         start = time.time()
         try:
             response = await client.chat.completions.create(
                 model=model,
                 max_tokens=config.MAX_TOKENS,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    *messages,
-                ],
+                messages=payload,
             )
             text = response.choices[0].message.content
             latency = int((time.time() - start) * 1000)
