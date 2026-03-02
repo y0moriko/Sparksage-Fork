@@ -14,13 +14,17 @@ _db_connections: dict[asyncio.AbstractEventLoop, aiosqlite.Connection] = {}
 async def get_db() -> aiosqlite.Connection:
     """Return the shared database connection for the current event loop."""
     loop = asyncio.get_running_loop()
-    if loop not in _db_connections or _db_connections[loop].io_task.done():
+    
+    # Check if we have a connection for this loop
+    conn = _db_connections.get(loop)
+    if conn is None:
         conn = await aiosqlite.connect(DATABASE_PATH)
         conn.row_factory = aiosqlite.Row
         await conn.execute("PRAGMA journal_mode=WAL")
         await conn.execute("PRAGMA foreign_keys=ON")
         _db_connections[loop] = conn
-    return _db_connections[loop]
+    
+    return conn
 
 
 async def init_db():
@@ -88,10 +92,41 @@ async def init_db():
             created_at      TEXT    DEFAULT (datetime('now'))
         );
 
-        CREATE TABLE IF NOT EXISTS channel_overrides (
+        CREATE TABLE IF NOT EXISTS channel_prompts (
             channel_id    TEXT PRIMARY KEY,
-            system_prompt TEXT,
-            provider_name TEXT
+            guild_id      TEXT NOT NULL,
+            system_prompt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS channel_providers (
+            channel_id    TEXT PRIMARY KEY,
+            guild_id      TEXT NOT NULL,
+            provider_name TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS analytics (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type   TEXT NOT NULL,
+            guild_id     TEXT,
+            channel_id   TEXT,
+            user_id      TEXT,
+            provider     TEXT,
+            tokens_used  INTEGER,
+            latency_ms   INTEGER,
+            created_at   TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS guild_config (
+            guild_id               TEXT PRIMARY KEY,
+            welcome_enabled        INTEGER DEFAULT 0,
+            welcome_channel_id     TEXT,
+            welcome_message        TEXT,
+            digest_enabled         INTEGER DEFAULT 0,
+            digest_channel_id      TEXT,
+            digest_time            TEXT DEFAULT '09:00',
+            moderation_enabled     INTEGER DEFAULT 0,
+            mod_log_channel_id     TEXT,
+            moderation_sensitivity TEXT DEFAULT 'medium'
         );
 
         INSERT OR IGNORE INTO wizard_state (id) VALUES (1);
@@ -178,14 +213,24 @@ async def sync_env_to_db():
         "TRANSLATION_ENABLED": "true" if getattr(cfg, "TRANSLATION_ENABLED", False) else "false",
         "TRANSLATION_TARGET_LANG": getattr(cfg, "TRANSLATION_TARGET_LANG", "English"),
         "TRANSLATION_CHANNEL_IDS": getattr(cfg, "TRANSLATION_CHANNEL_IDS", ""),
+        "JWT_SECRET": getattr(cfg, "JWT_SECRET", ""),
+        "ADMIN_PASSWORD": getattr(cfg, "ADMIN_PASSWORD", ""),
     }
-    # Only insert keys that don't already exist in DB (don't overwrite user edits)
+    
+    # Critical keys that should always be synced from .env if they exist there
+    CRITICAL_KEYS = {"ADMIN_PASSWORD", "JWT_SECRET", "DISCORD_TOKEN"}
+    
     db = await get_db()
+    existing_config = await get_all_config()
+    
     for key, value in env_keys.items():
-        await db.execute(
-            "INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)",
-            (key, value),
-        )
+        # Update if it's a critical key OR if it doesn't exist in DB yet
+        if key in CRITICAL_KEYS or key not in existing_config:
+            if value: # Only sync non-empty values
+                await db.execute(
+                    "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (key, value),
+                )
     await db.commit()
 
 
@@ -353,41 +398,147 @@ async def get_moderation_events(guild_id: str | None = None, limit: int = 50) ->
     return [dict(row) for row in rows]
 
 
-# --- Channel Override helpers ---
+# --- Channel Prompt helpers ---
 
 
-async def set_channel_override(channel_id: str, system_prompt: str | None = None, provider_name: str | None = None):
-    """Set per-channel AI overrides."""
+async def set_channel_prompt(channel_id: str, guild_id: str, system_prompt: str):
+    """Set a custom system prompt for a channel."""
     db = await get_db()
     await db.execute(
-        "INSERT INTO channel_overrides (channel_id, system_prompt, provider_name) VALUES (?, ?, ?) "
-        "ON CONFLICT(channel_id) DO UPDATE SET system_prompt = excluded.system_prompt, provider_name = excluded.provider_name",
-        (channel_id, system_prompt, provider_name),
+        "INSERT INTO channel_prompts (channel_id, guild_id, system_prompt) VALUES (?, ?, ?) "
+        "ON CONFLICT(channel_id) DO UPDATE SET system_prompt = excluded.system_prompt",
+        (channel_id, guild_id, system_prompt),
     )
     await db.commit()
 
 
-async def get_channel_override(channel_id: str) -> dict | None:
-    """Get AI overrides for a specific channel."""
+async def get_channel_prompt(channel_id: str) -> str | None:
+    """Get the custom system prompt for a channel."""
     db = await get_db()
-    cursor = await db.execute("SELECT * FROM channel_overrides WHERE channel_id = ?", (channel_id,))
+    cursor = await db.execute("SELECT system_prompt FROM channel_prompts WHERE channel_id = ?", (channel_id,))
     row = await cursor.fetchone()
-    return dict(row) if row else None
+    return row["system_prompt"] if row else None
 
 
-async def list_channel_overrides() -> list[dict]:
-    """List all channel overrides."""
+async def delete_channel_prompt(channel_id: str):
+    """Delete a custom system prompt for a channel."""
     db = await get_db()
-    cursor = await db.execute("SELECT * FROM channel_overrides")
+    await db.execute("DELETE FROM channel_prompts WHERE channel_id = ?", (channel_id,))
+    await db.commit()
+
+
+async def list_channel_prompts() -> list[dict]:
+    """List all custom channel prompts."""
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM channel_prompts")
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]
 
 
-async def delete_channel_override(channel_id: str):
-    """Delete AI overrides for a channel."""
+# --- Channel Provider helpers ---
+
+
+async def set_channel_provider(channel_id: str, guild_id: str, provider_name: str):
+    """Set a custom AI provider for a channel."""
     db = await get_db()
-    await db.execute("DELETE FROM channel_overrides WHERE channel_id = ?", (channel_id,))
+    await db.execute(
+        "INSERT INTO channel_providers (channel_id, guild_id, provider_name) VALUES (?, ?, ?) "
+        "ON CONFLICT(channel_id) DO UPDATE SET provider_name = excluded.provider_name",
+        (channel_id, guild_id, provider_name),
+    )
     await db.commit()
+
+
+async def get_channel_provider(channel_id: str) -> str | None:
+    """Get the custom AI provider for a channel."""
+    db = await get_db()
+    cursor = await db.execute("SELECT provider_name FROM channel_providers WHERE channel_id = ?", (channel_id,))
+    row = await cursor.fetchone()
+    return row["provider_name"] if row else None
+
+
+async def delete_channel_provider(channel_id: str):
+    """Delete a custom AI provider for a channel."""
+    db = await get_db()
+    await db.execute("DELETE FROM channel_providers WHERE channel_id = ?", (channel_id,))
+    await db.commit()
+
+
+async def list_channel_providers() -> list[dict]:
+    """List all custom channel providers."""
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM channel_providers")
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]
+
+
+# --- Guild Config helpers ---
+
+
+async def get_guild_config(guild_id: str) -> dict | None:
+    """Get the configuration for a specific guild."""
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM guild_config WHERE guild_id = ?", (guild_id,))
+    row = await cursor.fetchone()
+    if not row:
+        return None
+    
+    data = dict(row)
+    # Convert integer booleans to actual booleans
+    data["welcome_enabled"] = bool(data["welcome_enabled"])
+    data["digest_enabled"] = bool(data["digest_enabled"])
+    data["moderation_enabled"] = bool(data["moderation_enabled"])
+    return data
+
+
+async def set_guild_config(guild_id: str, data: dict):
+    """Update or create guild configuration."""
+    db = await get_db()
+    
+    # Extract values with defaults for updates
+    welcome_enabled = int(data.get("welcome_enabled", False))
+    welcome_channel_id = data.get("welcome_channel_id")
+    welcome_message = data.get("welcome_message")
+    digest_enabled = int(data.get("digest_enabled", False))
+    digest_channel_id = data.get("digest_channel_id")
+    digest_time = data.get("digest_time", "09:00")
+    moderation_enabled = int(data.get("moderation_enabled", False))
+    mod_log_channel_id = data.get("mod_log_channel_id")
+    moderation_sensitivity = data.get("moderation_sensitivity", "medium")
+
+    await db.execute(
+        """
+        INSERT INTO guild_config (
+            guild_id, welcome_enabled, welcome_channel_id, welcome_message,
+            digest_enabled, digest_channel_id, digest_time,
+            moderation_enabled, mod_log_channel_id, moderation_sensitivity
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(guild_id) DO UPDATE SET
+            welcome_enabled = excluded.welcome_enabled,
+            welcome_channel_id = excluded.welcome_channel_id,
+            welcome_message = excluded.welcome_message,
+            digest_enabled = excluded.digest_enabled,
+            digest_channel_id = excluded.digest_channel_id,
+            digest_time = excluded.digest_time,
+            moderation_enabled = excluded.moderation_enabled,
+            mod_log_channel_id = excluded.mod_log_channel_id,
+            moderation_sensitivity = excluded.moderation_sensitivity
+        """,
+        (
+            guild_id, welcome_enabled, welcome_channel_id, welcome_message,
+            digest_enabled, digest_channel_id, digest_time,
+            moderation_enabled, mod_log_channel_id, moderation_sensitivity
+        )
+    )
+    await db.commit()
+
+
+async def list_guild_configs() -> list[dict]:
+    """List all guild configurations."""
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM guild_config")
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]
 
 
 # --- Wizard helpers ---
@@ -467,3 +618,99 @@ async def close_db():
             del _db_connections[loop]
     except RuntimeError:
         pass
+
+
+# --- Analytics helpers ---
+
+
+async def add_analytics_event(
+    event_type: str,
+    guild_id: str | None = None,
+    channel_id: str | None = None,
+    user_id: str | None = None,
+    provider: str | None = None,
+    tokens_used: int | None = None,
+    latency_ms: int | None = None,
+):
+    """Log an analytics event."""
+    db = await get_db()
+    await db.execute(
+        """
+        INSERT INTO analytics (event_type, guild_id, channel_id, user_id, provider, tokens_used, latency_ms)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (event_type, guild_id, channel_id, user_id, provider, tokens_used, latency_ms),
+    )
+    await db.commit()
+
+
+async def get_analytics_summary() -> dict:
+    """Get summarized analytics for the dashboard."""
+    db = await get_db()
+    
+    # Messages per day
+    cursor = await db.execute(
+        """
+        SELECT date(created_at) as day, COUNT(*) as count
+        FROM analytics
+        WHERE event_type IN ('mention', 'command')
+        GROUP BY day
+        ORDER BY day DESC
+        LIMIT 30
+        """
+    )
+    messages_per_day = [dict(row) for row in await cursor.fetchall()]
+    
+    # Provider usage
+    cursor = await db.execute(
+        """
+        SELECT provider, COUNT(*) as count
+        FROM analytics
+        WHERE provider IS NOT NULL
+        GROUP BY provider
+        """
+    )
+    provider_usage = [dict(row) for row in await cursor.fetchall()]
+    
+    # Top channels
+    cursor = await db.execute(
+        """
+        SELECT channel_id, COUNT(*) as count
+        FROM analytics
+        GROUP BY channel_id
+        ORDER BY count DESC
+        LIMIT 10
+        """
+    )
+    top_channels = [dict(row) for row in await cursor.fetchall()]
+    
+    # Average latency
+    cursor = await db.execute(
+        """
+        SELECT date(created_at) as day, AVG(latency_ms) as avg_latency
+        FROM analytics
+        WHERE latency_ms IS NOT NULL
+        GROUP BY day
+        ORDER BY day DESC
+        LIMIT 30
+        """
+    )
+    avg_latency = [dict(row) for row in await cursor.fetchall()]
+    
+    return {
+        "messages_per_day": list(reversed(messages_per_day)),
+        "provider_usage": provider_usage,
+        "top_channels": top_channels,
+        "avg_latency": list(reversed(avg_latency)),
+    }
+
+
+async def get_analytics_history(limit: int = 100) -> list[dict]:
+    """Get detailed analytics event history."""
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT * FROM analytics ORDER BY id DESC LIMIT ?",
+        (limit,)
+    )
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]

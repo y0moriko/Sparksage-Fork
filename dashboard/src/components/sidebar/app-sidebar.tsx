@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import {
   Zap,
   LayoutDashboard,
+  BarChart3,
   Cpu,
   Settings,
   MessageSquare,
@@ -14,6 +15,8 @@ import {
   HelpCircle,
   Shield,
   Hash,
+  Server,
+  UserCircle,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,14 +32,22 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 
-const NAV_ITEMS = [
+const GENERAL_ITEMS = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Providers", href: "/dashboard/providers", icon: Cpu },
+  { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+  { title: "Conversations", href: "/dashboard/conversations", icon: MessageSquare },
+];
+
+const BOT_CONFIG_ITEMS = [
+  { title: "Server Settings", href: "/dashboard/server-settings", icon: Server },
+  { title: "Channels", href: "/dashboard/prompts", icon: Hash },
   { title: "FAQs", href: "/dashboard/faqs", icon: HelpCircle },
   { title: "Permissions", href: "/dashboard/permissions", icon: Shield },
-  { title: "Channels", href: "/dashboard/channels", icon: Hash },
+];
+
+const GLOBAL_CONFIG_ITEMS = [
+  { title: "Providers", href: "/dashboard/providers", icon: Cpu },
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
-  { title: "Conversations", href: "/dashboard/conversations", icon: MessageSquare },
 ];
 
 export function AppSidebar() {
@@ -54,10 +65,10 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
+          <SidebarGroupLabel>General</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => (
+              {GENERAL_ITEMS.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={pathname === item.href}>
                     <Link href={item.href}>
@@ -70,6 +81,43 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Bot Configuration</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {BOT_CONFIG_ITEMS.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={pathname === item.href}>
+                    <Link href={item.href}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>System</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {GLOBAL_CONFIG_ITEMS.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={pathname === item.href}>
+                    <Link href={item.href}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         <SidebarGroup>
           <SidebarGroupLabel>Tools</SidebarGroupLabel>
           <SidebarGroupContent>

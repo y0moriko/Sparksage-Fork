@@ -30,6 +30,7 @@ class SparkSageBot(commands.Bot):
             "cogs.digest",
             "cogs.moderation",
             "cogs.translate",
+            "cogs.prompts",
         ]
         for extension in initial_extensions:
             try:
@@ -62,6 +63,33 @@ def get_bot_status() -> dict:
     return {"online": False, "username": None, "latency_ms": None, "guild_count": 0, "guilds": []}
 
 
+def get_guild_channels(guild_id: str) -> list[dict]:
+    """Return all text channels for a given guild."""
+    guild = bot.get_guild(int(guild_id))
+    if not guild:
+        return []
+    
+    # Return basic info for text channels the bot can see
+    return [
+        {"id": str(c.id), "name": c.name, "type": str(c.type)}
+        for c in guild.text_channels
+        if c.permissions_for(guild.me).view_channel
+    ]
+
+
+def get_guild_roles(guild_id: str) -> list[dict]:
+    """Return all roles for a given guild."""
+    guild = bot.get_guild(int(guild_id))
+    if not guild:
+        return []
+    
+    return [
+        {"id": str(r.id), "name": r.name}
+        for r in guild.roles
+        if not r.managed and r.name != "@everyone"
+    ]
+
+
 # --- Events ---
 
 
@@ -89,7 +117,11 @@ async def on_message(message: discord.Message):
 
         async with message.channel.typing():
             response, provider_name = await ask_ai(
-                message.channel.id, message.author.display_name, clean_content
+                message.channel.id, 
+                message.author.display_name, 
+                clean_content,
+                guild_id=str(message.guild.id) if message.guild else None,
+                user_id=str(message.author.id)
             )
 
         # Split long responses (Discord 2000 char limit)

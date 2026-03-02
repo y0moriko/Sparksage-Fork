@@ -55,7 +55,13 @@ class Translate(commands.Cog):
         
         try:
             messages = [{"role": "user", "content": message.content}]
-            response, provider_name = providers.chat(messages, prompt)
+            response, provider_name = await providers.chat(
+                messages, 
+                prompt,
+                guild_id=str(message.guild.id) if message.guild else None,
+                channel_id=str(message.channel.id),
+                user_id=str(message.author.id)
+            )
             
             clean_res = response.strip().upper()
             if "ALREADY_IN_TARGET" in clean_res:
@@ -83,11 +89,26 @@ class Translate(commands.Cog):
     async def translate(self, interaction: discord.Interaction, text: str, target_language: str):
         await interaction.response.defer()
         
+        # Log command usage
+        await database.add_analytics_event(
+            event_type="command",
+            guild_id=str(interaction.guild_id) if interaction.guild else None,
+            channel_id=str(interaction.channel_id),
+            user_id=str(interaction.user.id),
+            provider="command:translate"
+        )
+
         user_message = f"Translate the following text to {target_language}:\n\n{text}"
         messages = [{"role": "user", "content": user_message}]
         
         try:
-            response, provider_name = providers.chat(messages, TRANSLATE_PROMPT)
+            response, provider_name = await providers.chat(
+                messages, 
+                TRANSLATE_PROMPT,
+                guild_id=str(interaction.guild_id) if interaction.guild else None,
+                channel_id=str(interaction.channel_id),
+                user_id=str(interaction.user.id)
+            )
             
             embed = discord.Embed(
                 title="🌍 Translation",
