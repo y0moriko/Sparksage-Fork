@@ -22,6 +22,8 @@ const settingsSchema = z.object({
   BOT_PREFIX: z.string().min(1).max(5),
   MAX_TOKENS: z.number().min(128).max(4096),
   SYSTEM_PROMPT: z.string().min(1),
+  RATE_LIMIT_USER: z.number().min(1).max(60),
+  RATE_LIMIT_GUILD: z.number().min(1).max(200),
   WELCOME_ENABLED: z.boolean(),
   WELCOME_CHANNEL_ID: z.string(),
   WELCOME_MESSAGE: z.string(),
@@ -49,6 +51,8 @@ const DEFAULTS: SettingsForm = {
   MAX_TOKENS: 1024,
   SYSTEM_PROMPT:
     "You are SparkSage, a helpful and friendly AI assistant in a Discord server. Be concise, helpful, and engaging.",
+  RATE_LIMIT_USER: 5,
+  RATE_LIMIT_GUILD: 20,
   WELCOME_ENABLED: false,
   WELCOME_CHANNEL_ID: "",
   WELCOME_MESSAGE: "Welcome {user} to {server}! I am SparkSage, your AI assistant. Feel free to ask me anything about the server or our community.",
@@ -88,7 +92,7 @@ export default function SettingsPage() {
         const mapped: Partial<SettingsForm> = {};
         for (const key of Object.keys(DEFAULTS) as (keyof SettingsForm)[]) {
           if (config[key] !== undefined) {
-            if (key === "MAX_TOKENS") {
+            if (key === "MAX_TOKENS" || key === "RATE_LIMIT_USER" || key === "RATE_LIMIT_GUILD") {
               mapped[key] = Number(config[key]);
             } else if (
               key === "WELCOME_ENABLED" || 
@@ -133,6 +137,8 @@ export default function SettingsPage() {
   }
 
   const maxTokens = form.watch("MAX_TOKENS");
+  const rateLimitUser = form.watch("RATE_LIMIT_USER");
+  const rateLimitGuild = form.watch("RATE_LIMIT_GUILD");
   const systemPrompt = form.watch("SYSTEM_PROMPT");
   const welcomeEnabled = form.watch("WELCOME_ENABLED");
   const digestEnabled = form.watch("DIGEST_ENABLED");
@@ -376,6 +382,42 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <Label htmlFor="system-prompt">System Prompt</Label>
               <Textarea id="system-prompt" {...form.register("SYSTEM_PROMPT")} rows={4} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Rate Limiting */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Rate Limiting</CardTitle>
+            <CardDescription>Prevent abuse by limiting AI requests per minute.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>User Limit (Req/Min)</Label>
+                <span className="text-sm font-mono text-muted-foreground">{rateLimitUser}</span>
+              </div>
+              <Slider 
+                value={[rateLimitUser]} 
+                onValueChange={([val]) => form.setValue("RATE_LIMIT_USER", val)} 
+                min={1} 
+                max={60} 
+                step={1} 
+              />
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Server Limit (Req/Min)</Label>
+                <span className="text-sm font-mono text-muted-foreground">{rateLimitGuild}</span>
+              </div>
+              <Slider 
+                value={[rateLimitGuild]} 
+                onValueChange={([val]) => form.setValue("RATE_LIMIT_GUILD", val)} 
+                min={1} 
+                max={200} 
+                step={5} 
+              />
             </div>
           </CardContent>
         </Card>

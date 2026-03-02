@@ -4,6 +4,7 @@ import discord
 import config
 from utils.bot_utils import ask_ai
 from utils.permissions import has_command_permission
+import db
 
 CODE_REVIEW_PROMPT = """You are a senior code reviewer. Analyze the code for:
 1. Bugs and potential errors
@@ -27,6 +28,15 @@ class CodeReview(commands.Cog):
     async def review(self, interaction: discord.Interaction, code: str, language: str | None = None):
         await interaction.response.defer()
         
+        # Log command usage
+        await db.add_analytics_event(
+            event_type="command",
+            guild_id=str(interaction.guild_id) if interaction.guild else None,
+            channel_id=str(interaction.channel_id),
+            user_id=str(interaction.user.id),
+            provider="command:review"
+        )
+
         # Prepare the message for AI
         lang_hint = f" (Language: {language})" if language else ""
         message = f"Please review this code{lang_hint}:\n\n```{language or ''}\n{code}\n```"
@@ -36,7 +46,9 @@ class CodeReview(commands.Cog):
             interaction.user.display_name, 
             message,
             system_prompt=CODE_REVIEW_PROMPT,
-            category="code-review"
+            category="code-review",
+            guild_id=str(interaction.guild_id) if interaction.guild else None,
+            user_id=str(interaction.user.id)
         )
         
         provider_label = config.PROVIDERS.get(provider_name, {}).get("name", provider_name)

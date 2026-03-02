@@ -5,12 +5,16 @@ interface FetchOptions extends RequestInit {
 }
 
 async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
-  const { token, headers: customHeaders, ...rest } = options;
+  const { token, headers: customHeaders, body, ...rest } = options;
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...((customHeaders as Record<string, string>) || {}),
   };
+
+  // If body is NOT FormData, default to JSON
+  if (body && !(body instanceof FormData) && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -18,6 +22,7 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
 
   const res = await fetch(`${API_URL}${path}`, {
     headers,
+    body,
     ...rest,
   });
 
@@ -67,6 +72,17 @@ export interface BotStatus {
   uptime?: number | null;
 }
 
+export interface DiscordChannel {
+  id: string;
+  name: string;
+  type: string;
+}
+
+export interface DiscordRole {
+  id: string;
+  name: string;
+}
+
 export interface CommandPermission {
   command_name: string;
   guild_id: string;
@@ -90,10 +106,92 @@ export interface FAQItem {
   created_at: string;
 }
 
+export interface ChannelPrompt {
+  channel_id: string;
+  guild_id: string;
+  system_prompt: string;
+}
+
+export interface ChannelProvider {
+  channel_id: string;
+  guild_id: string;
+  provider_name: string;
+}
+
 export interface ChannelOverride {
   channel_id: string;
+  guild_id: string;
   system_prompt: string | null;
   provider_name: string | null;
+}
+
+export interface ServerConfig {
+  guild_id: string;
+  welcome_enabled: boolean;
+  welcome_channel_id: string | null;
+  welcome_message: string | null;
+  digest_enabled: boolean;
+  digest_channel_id: string | null;
+  digest_time: string | null;
+  moderation_enabled: boolean;
+  mod_log_channel_id: string | null;
+  moderation_sensitivity: string | null;
+  faq_channel_id: string | null;
+}
+
+export interface PluginItem {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  cog: string;
+  enabled: boolean;
+  path: string;
+}
+
+export interface AnalyticsSummary {
+  messages_per_day: Array<{ day: string; count: number }>;
+  provider_usage: Array<{ provider: string; count: number }>;
+  top_channels: Array<{ channel_id: string; count: number }>;
+  avg_latency: Array<{ day: string; avg_latency: number }>;
+}
+
+export interface UsageResponse {
+  user_usage: Record<string, number>;
+  guild_usage: Record<string, number>;
+}
+
+export interface CostSummary {
+  total_cost: number;
+  provider_costs: Array<{ provider: string; cost: number }>;
+  daily_costs: Array<{ day: string; cost: number }>;
+}
+
+export interface AnalyticsEvent {
+  id: number;
+  event_type: string;
+  guild_id: string | null;
+  channel_id: string | null;
+  user_id: string | null;
+  provider: string | null;
+  tokens_used: number | null;
+  latency_ms: number | null;
+  created_at: string;
+}
+
+export interface KnowledgeFile {
+  name: string;
+  size: number;
+  type: string;
+}
+
+export interface CustomCommand {
+  name: string;
+  description: string;
+  prompt: string;
+  requires_input: boolean;
+  created_at: string;
 }
 
 export const api = {
@@ -122,10 +220,10 @@ export const api = {
   getProviders: (token: string) =>
     apiFetch<ProvidersResponse>("/api/providers", { token }),
 
-  testProvider: (token: string, provider: string) =>
+  testProvider: (token: string, provider: string, api_key?: string) =>
     apiFetch<TestProviderResult>("/api/providers/test", {
       method: "POST",
-      body: JSON.stringify({ provider }),
+      body: JSON.stringify({ provider, api_key }),
       token,
     }),
 
@@ -139,6 +237,18 @@ export const api = {
   // Bot
   getBotStatus: (token: string) =>
     apiFetch<BotStatus>("/api/bot/status", { token }),
+
+  restartBot: (token: string) =>
+    apiFetch<{ status: string }>("/api/bot/restart", {
+      method: "POST",
+      token,
+    }),
+
+  getGuildChannels: (token: string, guildId: string) =>
+    apiFetch<{ channels: DiscordChannel[] }>(`/api/bot/guilds/${guildId}/channels`, { token }),
+
+  getGuildRoles: (token: string, guildId: string) =>
+    apiFetch<{ roles: DiscordRole[] }>(`/api/bot/guilds/${guildId}/roles`, { token }),
 
   // Conversations
   getConversations: (token: string) =>
@@ -195,13 +305,47 @@ export const api = {
       token,
     }),
 
-  removePermission: (token: string, commandName: string, guildId: string, roleId: string) =>
-    apiFetch<{ status: string }>(`/api/permissions?command_name=${commandName}&guild_id=${guildId}&role_id=${roleId}`, {
+  removePermission: (token: string, commandName: string, guild_id: string, roleId: string) =>
+    apiFetch<{ status: string }>(`/api/permissions?command_name=${commandName}&guild_id=${guild_id}&role_id=${roleId}`, {
       method: "DELETE",
       token,
     }),
 
-  // Channels
+  // Prompts
+  getChannelPrompts: (token: string) =>
+    apiFetch<{ prompts: ChannelPrompt[] }>("/api/prompts/prompts", { token }),
+
+  setChannelPrompt: (token: string, data: ChannelPrompt) =>
+    apiFetch<{ status: string }>("/api/prompts/prompts", {
+      method: "POST",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  deleteChannelPrompt: (token: string, channelId: string) =>
+    apiFetch<{ status: string }>(`/api/prompts/prompts/${channelId}`, {
+      method: "DELETE",
+      token,
+    }),
+
+  // Channel Providers
+  getChannelProviders: (token: string) =>
+    apiFetch<{ providers: ChannelProvider[] }>("/api/prompts/providers", { token }),
+
+  setChannelProvider: (token: string, data: ChannelProvider) =>
+    apiFetch<{ status: string }>("/api/prompts/providers", {
+      method: "POST",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  deleteChannelProvider: (token: string, channelId: string) =>
+    apiFetch<{ status: string }>(`/api/prompts/providers/${channelId}`, {
+      method: "DELETE",
+      token,
+    }),
+
+  // Overrides (Legacy compatibility if needed)
   getChannelOverrides: (token: string) =>
     apiFetch<{ overrides: ChannelOverride[] }>("/api/channels/overrides", { token }),
 
@@ -214,6 +358,78 @@ export const api = {
 
   deleteChannelOverride: (token: string, channelId: string) =>
     apiFetch<{ status: string }>(`/api/channels/overrides/${channelId}`, {
+      method: "DELETE",
+      token,
+    }),
+
+  // Server Settings
+  getServerSettings: (token: string, guildId: string) =>
+    apiFetch<ServerConfig>(`/api/server-settings/${guildId}`, { token }),
+
+  updateServerSettings: (token: string, guildId: string, data: Partial<ServerConfig>) =>
+    apiFetch<{ status: string }>(`/api/server-settings/${guildId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  // Plugins
+  getPlugins: (token: string) =>
+    apiFetch<{ plugins: PluginItem[] }>("/api/plugins", { token }),
+
+  updatePluginStatus: (token: string, pluginId: string, enabled: boolean) =>
+    apiFetch<{ status: string; message: string }>("/api/plugins/status", {
+      method: "PUT",
+      body: JSON.stringify({ id: pluginId, enabled }),
+      token,
+    }),
+
+  // Analytics
+  getAnalyticsSummary: (token: string, guildId?: string) =>
+    apiFetch<AnalyticsSummary>(`/api/analytics/summary${guildId ? `?guild_id=${guildId}` : ""}`, { token }),
+
+  getAnalyticsUsage: (token: string, guildId?: string) =>
+    apiFetch<UsageResponse>(`/api/analytics/usage${guildId ? `?guild_id=${guildId}` : ""}`, { token }),
+
+  getAnalyticsCosts: (token: string) =>
+    apiFetch<CostSummary>("/api/analytics/costs", { token }),
+
+  getAnalyticsHistory: (token: string, limit: number = 100, guildId?: string) =>
+    apiFetch<{ history: AnalyticsEvent[] }>(`/api/analytics/history?limit=${limit}${guildId ? `&guild_id=${guildId}` : ""}`, { token }),
+
+  // Knowledge Base
+  getKnowledgeFiles: (token: string) =>
+    apiFetch<{ files: KnowledgeFile[] }>("/api/knowledge/", { token }),
+
+  uploadKnowledgeFile: (token: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiFetch<{ status: string; filename: string }>("/api/knowledge/upload", {
+      method: "POST",
+      body: formData,
+      token,
+    });
+  },
+
+  deleteKnowledgeFile: (token: string, filename: string) =>
+    apiFetch<{ status: string }>(`/api/knowledge/${filename}`, {
+      method: "DELETE",
+      token,
+    }),
+
+  // Custom Commands
+  getCustomCommands: (token: string) =>
+    apiFetch<{ commands: CustomCommand[] }>("/api/prompts/custom", { token }),
+
+  addCustomCommand: (token: string, data: Omit<CustomCommand, "created_at">) =>
+    apiFetch<{ status: string; name: string }>("/api/prompts/custom", {
+      method: "POST",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  deleteCustomCommand: (token: string, name: string) =>
+    apiFetch<{ status: string }>(`/api/prompts/custom/${name}`, {
       method: "DELETE",
       token,
     }),
