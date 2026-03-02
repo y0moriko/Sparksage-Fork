@@ -43,25 +43,39 @@ export default function AnalyticsPage() {
   const [usage, setUsage] = useState<UsageResponse | null>(null);
   const [costs, setCosts] = useState<CostSummary | null>(null);
   const [botStatus, setBotStatus] = useState<BotStatus | null>(null);
+  const [providersData, setProvidersData] = useState<ProvidersResponse | null>(null);
   const [channelMap, setChannelMap] = useState<Record<string, string>>({});
   const [config, setConfig] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [selectedGuildId, setSelectedGuildId] = useState<string>("all");
+  const [chartPrimaryColor, setChartPrimaryColor] = useState<string>("#8884d8"); // Fallback color
 
   const token = (session as { accessToken?: string })?.accessToken;
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const computedStyle = window.getComputedStyle(document.documentElement);
+      const primaryColor = computedStyle.getPropertyValue('--primary').trim();
+      if (primaryColor) {
+        setChartPrimaryColor(primaryColor);
+      }
+    }
+  }, []); // Run once on mount
 
   useEffect(() => {
     if (!token) return;
 
     const fetchData = async () => {
       try {
-        const [status, configData] = await Promise.all([
+        const [status, configData, provs] = await Promise.all([
           api.getBotStatus(token),
           api.getConfig(token),
+          api.getProviders(token),
         ]);
         
         setBotStatus(status);
         setConfig(configData.config);
+        setProvidersData(provs);
 
         // Fetch filtered data
         const guildFilter = selectedGuildId === "all" ? undefined : selectedGuildId;
@@ -115,6 +129,15 @@ export default function AnalyticsPage() {
     displayName: channelMap[c.channel_id] || c.channel_id
   }));
 
+  // Filter out non-AI providers from analytics summary
+  // Sometimes 'command:ask' etc might be in there if not filtered correctly on backend
+  const filteredProviderUsage = summary.provider_usage.filter(p => 
+    !p.provider.startsWith("command:")
+  );
+
+  const configuredCount = providersData?.providers.filter(p => p.configured).length || 0;
+  const activeCount = filteredProviderUsage.length;
+
   return (
     <div className="space-y-6 pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -167,11 +190,13 @@ export default function AnalyticsPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Providers</CardTitle>
+                <CardTitle className="text-sm font-medium">Providers (Config / Active)</CardTitle>
                 <Cpu className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{summary.provider_usage.length}</div>
+                <div className="text-2xl font-bold">
+                  {configuredCount} / {activeCount}
+                </div>
               </CardContent>
             </Card>
             <Card>
@@ -223,7 +248,7 @@ export default function AnalyticsPage() {
                     <Line
                       type="monotone"
                       dataKey="count"
-                      stroke="hsl(var(--primary))"
+                      stroke={chartPrimaryColor}
                       strokeWidth={2}
                       dot={false}
                     />
@@ -274,7 +299,7 @@ export default function AnalyticsPage() {
                     <Tooltip
                       contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))" }}
                     />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="count" fill={chartPrimaryColor} radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>

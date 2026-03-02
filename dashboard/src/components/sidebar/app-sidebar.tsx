@@ -32,7 +32,14 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { ModeToggle } from "@/components/ui/mode-toggle";
+// import { ModeToggle } from "@/components/ui/mode-toggle"; // Removed direct import
+
+import dynamic from 'next/dynamic';
+
+const DynamicModeToggle = dynamic(
+  () => import('@/components/ui/mode-toggle').then((mod) => mod.ModeToggle),
+  { ssr: false }
+);
 
 const GENERAL_ITEMS = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -66,7 +73,7 @@ export function AppSidebar() {
             </div>
             <span className="font-semibold">SparkSage</span>
           </div>
-          <ModeToggle />
+          <DynamicModeToggle /> {/* Using dynamic import */}
         </div>
       </SidebarHeader>
       <SidebarContent>
