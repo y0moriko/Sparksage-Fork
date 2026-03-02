@@ -119,8 +119,29 @@ export default function SettingsPage() {
           payload[key] = strVal;
         }
       }
-      await api.updateConfig(token, payload);
+      const { config } = await api.updateConfig(token, payload);
       toast.success("Settings saved successfully");
+
+      // Remap the returned config to the form shape and reset
+      const mapped: Partial<SettingsForm> = {};
+      for (const key of Object.keys(DEFAULTS) as (keyof SettingsForm)[]) {
+        if (config[key] !== undefined) {
+          if (key === "MAX_TOKENS") {
+            mapped[key] = Number(config[key]);
+          } else if (
+            key === "WELCOME_ENABLED" ||
+            key === "DIGEST_ENABLED" ||
+            key === "MODERATION_ENABLED" ||
+            key === "TRANSLATION_ENABLED"
+          ) {
+            mapped[key] = String(config[key]).toLowerCase() === "true";
+          } else {
+            (mapped as any)[key] = config[key];
+          }
+        }
+      }
+      form.reset({ ...values, ...mapped });
+      
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save settings");
     } finally {

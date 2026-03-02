@@ -20,26 +20,21 @@ async def ask_ai(
     category: str | None = None
 ) -> tuple[str, str]:
     """Send a message to AI and return (response, provider_name)."""
-    # Check for channel overrides
-    override = await database.get_channel_override(str(channel_id))
+    # Check for channel-specific overrides
+    channel_prompt = await database.get_channel_prompt(str(channel_id))
+    forced_provider = await database.get_channel_provider(str(channel_id))
     
     # Store user message in DB
     await database.add_message(str(channel_id), "user", f"{user_name}: {message}", category=category)
 
     history = await get_history(channel_id)
     
-    # Override logic: 
-    # 1. Parameter system_prompt (highest priority - from specialized cogs)
-    # 2. Database channel override
-    # 3. Global config system prompt (lowest priority)
-    prompt = system_prompt or (override["system_prompt"] if override and override["system_prompt"] else config.SYSTEM_PROMPT)
-    
-    # Provider override logic
-    forced_provider = override["provider_name"] if override and override["provider_name"] else None
+    # Priority: 1. Cog prompt, 2. Channel prompt, 3. Global prompt
+    prompt = system_prompt or channel_prompt or config.SYSTEM_PROMPT
 
     try:
         if forced_provider:
-            # If a provider is forced for this channel, try ONLY that one (no fallback)
+            # If a provider is forced for this channel, try ONLY that one
             from providers import _clients
             client = _clients.get(forced_provider)
             if client:
@@ -55,7 +50,7 @@ async def ask_ai(
                 response = response_obj.choices[0].message.content
                 provider_name = forced_provider
             else:
-                # Fallback to normal chat if forced client not found
+                # Fallback if forced provider client is missing
                 response, provider_name = providers.chat(history, prompt)
         else:
             response, provider_name = providers.chat(history, prompt)

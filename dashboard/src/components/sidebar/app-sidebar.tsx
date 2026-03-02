@@ -13,7 +13,7 @@ import {
   LogOut,
   HelpCircle,
   Shield,
-  Hash,
+  UserCircle,
 } from "lucide-react";
 import {
   Sidebar,
@@ -34,7 +34,7 @@ const NAV_ITEMS = [
   { title: "Providers", href: "/dashboard/providers", icon: Cpu },
   { title: "FAQs", href: "/dashboard/faqs", icon: HelpCircle },
   { title: "Permissions", href: "/dashboard/permissions", icon: Shield },
-  { title: "Channels", href: "/dashboard/channels", icon: Hash },
+  { title: "Personas", href: "/dashboard/prompts", icon: UserCircle },
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
   { title: "Conversations", href: "/dashboard/conversations", icon: MessageSquare },
 ];

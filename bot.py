@@ -30,6 +30,7 @@ class SparkSageBot(commands.Bot):
             "cogs.digest",
             "cogs.moderation",
             "cogs.translate",
+            "cogs.prompts",
         ]
         for extension in initial_extensions:
             try:
@@ -60,6 +61,20 @@ def get_bot_status() -> dict:
             "commands": [cmd.name for cmd in bot.tree.get_commands()],
         }
     return {"online": False, "username": None, "latency_ms": None, "guild_count": 0, "guilds": []}
+
+
+def get_guild_channels(guild_id: str) -> list[dict]:
+    """Return all text channels for a given guild."""
+    guild = bot.get_guild(int(guild_id))
+    if not guild:
+        return []
+    
+    # Return basic info for text channels the bot can see
+    return [
+        {"id": str(c.id), "name": c.name, "type": str(c.type)}
+        for c in guild.text_channels
+        if c.permissions_for(guild.me).view_channel
+    ]
 
 
 # --- Events ---

@@ -44,7 +44,7 @@ async def update_config(body: ConfigUpdate, user: dict = Depends(get_current_use
     await db.set_config_bulk(body.values)
     # Reload config module from DB values
     await _reload_config()
-    return {"status": "ok"}
+    return await get_config(user)
 
 
 async def _reload_config():
