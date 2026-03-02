@@ -16,8 +16,22 @@ class General(commands.Cog):
     @has_command_permission()
     async def ask(self, interaction: discord.Interaction, question: str):
         await interaction.response.defer()
+        
+        # Log command usage
+        await database.add_analytics_event(
+            event_type="command",
+            guild_id=str(interaction.guild_id) if interaction.guild else None,
+            channel_id=str(interaction.channel_id),
+            user_id=str(interaction.user.id),
+            provider="command:ask"
+        )
+
         response, provider_name = await ask_ai(
-            interaction.channel_id, interaction.user.display_name, question
+            interaction.channel_id, 
+            interaction.user.display_name, 
+            question,
+            guild_id=str(interaction.guild_id) if interaction.guild else None,
+            user_id=str(interaction.user.id)
         )
         provider_label = config.PROVIDERS.get(provider_name, {}).get("name", provider_name)
         footer = f"\n-# Powered by {provider_label}"

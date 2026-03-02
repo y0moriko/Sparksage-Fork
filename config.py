@@ -13,7 +13,7 @@ AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").lower()
 
 # Free providers
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
@@ -23,7 +23,7 @@ OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-r1:free")
 
 # Paid providers (optional)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -36,6 +36,10 @@ SYSTEM_PROMPT = os.getenv(
     "You are SparkSage, a helpful and friendly AI assistant in a Discord server. "
     "Be concise, helpful, and engaging.",
 )
+
+# Rate limiting
+RATE_LIMIT_USER = int(os.getenv("RATE_LIMIT_USER", "5")) # Requests per minute
+RATE_LIMIT_GUILD = int(os.getenv("RATE_LIMIT_GUILD", "20")) # Requests per minute
 
 # Onboarding settings
 WELCOME_ENABLED = os.getenv("WELCOME_ENABLED", "false").lower() == "true"
@@ -113,6 +117,16 @@ def _build_providers() -> dict:
 # Provider configs — all use the OpenAI-compatible SDK
 PROVIDERS = _build_providers()
 
+# Provider pricing per 1M tokens (estimated in USD)
+# Format: { provider_name: { input: price, output: price } }
+PROVIDER_PRICING = {
+    "gemini": {"input": 0.0, "output": 0.0},      # Free tier assumed
+    "groq": {"input": 0.0, "output": 0.0},        # Free tier assumed
+    "openrouter": {"input": 0.0, "output": 0.0},  # Varies, assumed free for r1:free
+    "anthropic": {"input": 3.0, "output": 15.0},  # Claude 3.5 Sonnet approx
+    "openai": {"input": 0.15, "output": 0.60},    # GPT-4o-mini approx
+}
+
 # Build the free fallback chain (order matters)
 FREE_FALLBACK_CHAIN = ["gemini", "groq", "openrouter"]
 
@@ -137,6 +151,8 @@ def reload_from_db(db_config: dict[str, str]):
         "BOT_PREFIX": str,
         "MAX_TOKENS": int,
         "SYSTEM_PROMPT": str,
+        "RATE_LIMIT_USER": int,
+        "RATE_LIMIT_GUILD": int,
         "WELCOME_ENABLED": lambda v: str(v).lower() == "true",
         "WELCOME_CHANNEL_ID": str,
         "WELCOME_MESSAGE": str,
